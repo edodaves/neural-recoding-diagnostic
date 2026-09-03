@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find your ceiling: Neural Recoding diagnostic</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#0E0E0D;
+    --panel:#171615;
+    --line:#2B2926;
+    --text:#EDEBE4;
+    --text-dim:#9C988E;
+    --accent:#A9C2CC;
+    --accent-dim:#54707B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+  body{display:flex;align-items:center;justify-content:center;padding:32px 20px;}
+
+  .frame{width:100%;max-width:560px;}
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;
+    color:var(--text-dim);display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:20px;
+  }
+  .bracket{position:relative;flex:1;height:1px;background:var(--line);margin:0 16px;}
+  .bracket::before,.bracket::after{content:'';position:absolute;top:-4px;width:1px;height:9px;background:var(--line);}
+  .bracket::before{left:0;} .bracket::after{right:0;}
+  .bracket-fill{position:absolute;top:0;left:0;height:1px;background:var(--accent);transition:width .5s ease;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:2px;
+    padding:44px 36px;min-height:340px;display:flex;flex-direction:column;
+  }
+
+  h1{font-family:'Fraunces',serif;font-weight:500;font-size:34px;line-height:1.15;margin-bottom:16px;}
+  .lede{font-size:15px;line-height:1.6;color:var(--text-dim);margin-bottom:28px;}
+
+  .q{font-family:'Fraunces',serif;font-weight:400;font-size:22px;line-height:1.35;margin-bottom:28px;}
+
+  .opt{
+    display:block;width:100%;text-align:left;background:transparent;
+    border:1px solid var(--line);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:15px;line-height:1.5;padding:16px 18px;margin-bottom:10px;
+    border-radius:2px;cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  .opt:hover{border-color:var(--accent-dim);background:rgba(169,194,204,0.08);}
+  .opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .btn{
+    background:var(--accent);color:#0F1A1E;border:none;font-family:'Inter',sans-serif;
+    font-weight:500;font-size:15px;padding:14px 28px;border-radius:2px;cursor:pointer;
+    margin-top:auto;align-self:flex-start;transition:opacity .15s;
+  }
+  .btn:hover{opacity:0.88;}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .field{
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    color:var(--text);font-family:'Inter',sans-serif;font-size:16px;
+    padding:10px 2px;width:100%;margin-bottom:8px;
+  }
+  .field:focus{outline:none;border-bottom-color:var(--accent);}
+  .field::placeholder{color:var(--text-dim);}
+  .err{color:var(--accent);font-size:13px;margin-bottom:12px;min-height:16px;}
+
+  .result-tag{
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;
+    color:var(--accent);margin-bottom:14px;text-transform:uppercase;
+  }
+  .result-body{font-size:15px;line-height:1.7;color:var(--text-dim);margin-bottom:8px;}
+  .result-route{
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);
+    border-top:1px solid var(--line);padding-top:16px;margin-top:20px;margin-bottom:24px;
+  }
+  .result-route b{color:var(--text);font-weight:500;}
+
+  .result-h{font-family:'Fraunces',serif;font-weight:500;font-size:16px;margin:26px 0 10px;}
+  .result-p{font-size:14.5px;line-height:1.75;color:var(--text-dim);margin-bottom:4px;}
+  .result-list{list-style:none;margin:6px 0 4px;}
+  .result-list li{
+    font-size:14.5px;line-height:1.6;color:var(--text-dim);padding:9px 0 9px 20px;
+    border-bottom:1px solid var(--line);position:relative;
+  }
+  .result-list li:last-child{border-bottom:none;}
+  .result-list li::before{content:'\2022';position:absolute;left:2px;color:var(--accent-dim);}
+  .result-note{
+    font-size:13px;line-height:1.65;color:var(--text-dim);background:rgba(169,194,204,0.06);
+    border:1px solid var(--line);border-radius:2px;padding:14px 16px;margin:18px 0 22px;
+  }
+  .btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:auto;}
+  .btn-secondary{
+    background:transparent;color:var(--text-dim);border:1px solid var(--line);
+    font-family:'Inter',sans-serif;font-size:15px;padding:14px 24px;border-radius:2px;
+    cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .btn-secondary:hover{border-color:var(--accent-dim);color:var(--text);}
+
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+
+  @media (max-width:480px){
+    .card{padding:32px 22px;}
+    h1{font-size:27px;}
+    .q{font-size:19px;}
+  }
+</style>
+</head>
+<body>
+<h2 class="sr-only">A short diagnostic quiz that identifies your entrepreneurial growth ceiling, then routes you to the matching Neural Recoding offer.</h2>
+
+<div class="frame">
+  <div class="eyebrow">
+    <span id="stepLabel">START</span>
+    <span class="bracket"><span class="bracket-fill" id="barFill" style="width:0%"></span></span>
+    <span>NEURAL RECODING</span>
+  </div>
+  <div class="card" id="card"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ---------- CONFIG: replace these with your real booking links ----------
+const LINKS = {
+  mvp: "https://booking.edodaves.com/neural-recoding-mvp",
+  session: "https://booking.edodaves.com/30min-connection-call",
+  collective: "https://zenithapplication.netlify.app/"
+};
+// Paste your Apps Script /exec URL here (same pattern as the intake form).
+// Leave empty to skip lead logging (e.g. while testing locally).
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHXflfqQrCRGqoqgA5Z_Q1dadTC38w6CHWf8K8SYtWQsL2OnYHvipwsdezt5m-otT9/exec";
+
+// ---------- QUESTIONS ----------
+const QUESTIONS = [
+  {
+    q: "When you hit a plateau in your business, what actually happens in your head?",
+    opts: [
+      { t: "I convince myself the timing isn't right yet", a: "scarcity" },
+      { t: "I redo the work until it's \u201cgood enough\u201d to show anyone", a: "perfectionism" },
+      { t: "I quietly pull back rather than risk being seen struggling", a: "approval" },
+      { t: "I know exactly what to do, I just don't do it", a: "identity" }
+    ]
+  },
+  {
+    q: "What's true about how you talk about your own success?",
+    opts: [
+      { t: "I downplay it before anyone else can", a: "approval" },
+      { t: "I attribute it to luck or timing", a: "scarcity" },
+      { t: "I mention what's still wrong with it", a: "perfectionism" },
+      { t: "I feel like a fraud claiming it", a: "identity" }
+    ]
+  },
+  {
+    q: "What stops you from charging what you're actually worth?",
+    opts: [
+      { t: "Fear there won't be enough clients if I raise prices", a: "scarcity" },
+      { t: "The offer isn't polished enough yet", a: "perfectionism" },
+      { t: "Worry about what past clients or peers will think", a: "approval" },
+      { t: "It doesn't match how I see myself yet", a: "identity" }
+    ]
+  },
+  {
+    q: "How do you react to direct critical feedback?",
+    opts: [
+      { t: "I spiral on it longer than it deserves", a: "approval" },
+      { t: "I use it to justify more revision cycles", a: "perfectionism" },
+      { t: "I get defensive about resource constraints", a: "scarcity" },
+      { t: "I intellectually agree but nothing changes", a: "identity" }
+    ]
+  },
+  {
+    q: "What does your inner monologue sound like before a big move: a launch, a pitch, an ask?",
+    opts: [
+      { t: "\u201cWhat if this fails and confirms what people already think\u201d", a: "approval" },
+      { t: "\u201cThis needs one more pass\u201d", a: "perfectionism" },
+      { t: "\u201cI can't afford for this to not work\u201d", a: "scarcity" },
+      { t: "\u201cThis isn't really me\u201d", a: "identity" }
+    ]
+  },
+  {
+    q: "Finish this sentence: \u201cThe version of me who's already succeeding at this level would\u2026\u201d",
+    weight: 2,
+    opts: [
+      { t: "\u2026not need everyone's approval first", a: "approval" },
+      { t: "\u2026ship before it's perfect", a: "perfectionism" },
+      { t: "\u2026operate from abundance, not fear", a: "scarcity" },
+      { t: "\u2026already feel like this is who I am", a: "identity" }
+    ]
+  },
+  {
+    q: "When you imagine your business succeeding at the next level, what do you notice first?",
+    opts: [
+      { t: "How exposed that would make me", a: "approval" },
+      { t: "All the details I'd still need to fix", a: "perfectionism" },
+      { t: "The resources I'd need that I don't have yet", a: "scarcity" },
+      { t: "It doesn't quite feel like mine yet", a: "identity" }
+    ]
+  },
+  {
+    q: "What's the real cost of staying at your current level?",
+    opts: [
+      { t: "Nothing changes, and that feels strangely safe", a: "approval" },
+      { t: "I keep almost-launching but never actually shipping", a: "perfectionism" },
+      { t: "I keep trading time for money instead of building leverage", a: "scarcity" },
+      { t: "I keep performing a version of myself that isn't quite true", a: "identity" }
+    ]
+  }
+];
+
+// ---------- RESULTS ----------
+const RESULTS = {
+  approval: {
+    tag: "The approval ceiling",
+    title: "Your growth is throttled by an old, accurate read on your environment that's no longer true.",
+    body: "Somewhere, being visible got tied to being judged. Some part of you is still protecting you from that, even though it's costing you the visibility your business needs now.",
+    mechanism: "This isn't a confidence problem you can talk yourself out of. Emotionally charged patterns like this tend to get encoded once, early, under a real threat: being excluded, mocked, or punished for standing out. From there they quietly generalize to every future moment that resembles it. The nervous system isn't malfunctioning. It's running an old threat model that was never updated with new evidence.",
+    signs: [
+      "You write a post, then delete it before publishing",
+      "You underclaim your results so no one can accuse you of overselling",
+      "You feel relief, not disappointment, when a launch gets delayed",
+      "You perform confidently in private but hedge everything in public",
+      "Positive feedback doesn't land the way negative feedback does"
+    ],
+    shift: "When this resolves, visibility stops costing you anything. You post the thing without the internal negotiation, not because you built more confidence, but because the old alarm has actually gone quiet.",
+    offer: "Neural Recoding session",
+    route: "This pattern responds fast to focused, identity-level work. A single high-leverage session is the right entry point.",
+    note: "The session itself is free. You cover a small commitment fee up front, and it's there to filter for people who are actually serious, not to charge for my time. This isn't a straightforward booking either: I review every application and decide who I want to work with, so treat the session as your side of that conversation too.",
+    link: LINKS.mvp,
+    ctaLabel: "Book your Neural Recoding session"
+  },
+  perfectionism: {
+    tag: "The perfectionism ceiling",
+    title: "You've built a system where \u201cnot ready yet\u201d never actually resolves.",
+    body: "The revision isn't about quality anymore. It's a delay mechanism protecting you from the risk of being judged on a finished thing.",
+    mechanism: "Perfectionism at this level isn't a work ethic problem. It's a threat-avoidance strategy wearing the costume of high standards. As long as the thing is technically unfinished, it can't be judged, so the anxiety of exposure gets postponed indefinitely instead of resolved. The real cost isn't the extra hours. It's that the business never gets tested against reality.",
+    signs: [
+      "You've rebuilt the same offer, page, or deck more than twice without shipping it",
+      "You know objectively the current version would work, and still don't send it",
+      "You feel calmer while revising than in the moment before publishing",
+      "Deadlines from other people work better on you than deadlines you set yourself",
+      "You call it \u201chigh standards\u201d even when it's costing you real revenue"
+    ],
+    shift: "When this resolves, \u201cgood enough\u201d stops feeling like a compromise. You ship at 80% because you trust the next version will be informed by real feedback instead of imagined judgment.",
+    offer: "a Neural Recoding application session",
+    route: "This pattern needs real pressure-testing, not a single conversation, and that's exactly what the application session is built for.",
+    link: LINKS.session,
+    ctaLabel: "Apply for your session"
+  },
+  scarcity: {
+    tag: "The scarcity ceiling",
+    title: "Your nervous system is still running last year's resource math.",
+    body: "Decisions that should be strategic are getting made by an old fear response about there not being enough: clients, time, runway.",
+    mechanism: "Scarcity patterns typically form during a real period of genuine constraint, then outlive it. The brain doesn't automatically update just because the bank balance changed. It keeps applying the old survival math to a situation that no longer requires it. That's why the fear can feel completely rational even when the numbers say otherwise.",
+    signs: [
+      "You take on clients or projects you already know are wrong for you",
+      "You hesitate to raise prices even with a full pipeline",
+      "You feel a flash of panic at slow weeks that the data doesn't justify",
+      "You avoid saying no, even when yes costs more than it's worth",
+      "Abundance feels less believable than scarcity, even when you're doing well"
+    ],
+    shift: "When this resolves, decisions get made from strategy instead of fear. You can say no to a bad-fit client without a spiral, because the decision isn't being made by an outdated survival instinct anymore.",
+    offer: "a Neural Recoding application session",
+    route: "This needs real pressure-testing over time, not a one-off pep talk, and that's exactly what the application session is built for.",
+    link: LINKS.session,
+    ctaLabel: "Apply for your session"
+  },
+  identity: {
+    tag: "The identity-lag ceiling",
+    title: "You already know what to do. The gap isn't information, it's identity.",
+    body: "This is the most common pattern in people who've already had real success. The strategy is right, but part of you hasn't caught up to being the person who executes it.",
+    mechanism: "Identity lags behind achievement more often than people expect. You can hit a new level of success while still operating from the self-concept of an earlier stage. That shows up as sabotage, inconsistency, or a strange discomfort with your own results. It isn't quite imposter syndrome. It's an outdated internal model that hasn't been rewritten to match who you've actually become.",
+    signs: [
+      "You know the next move and still don't take it",
+      "Success feels slightly unreal, like it happened to someone else",
+      "You revert to old habits right after a breakthrough",
+      "You explain your wins away more than you claim them",
+      "Peers at your actual level feel like a different category of person than you"
+    ],
+    shift: "When this resolves, the strategy you already know starts actually getting executed. Not because you learn something new, but because the person doing the executing finally matches the person who's capable of it.",
+    offer: "The Collective / Masters",
+    route: "A group context works well here. Watching peers close the same identity gap is part of the mechanism.",
+    link: LINKS.collective,
+    ctaLabel: "Apply for The Collective"
+  }
+};
+
+// ---------- STATE ----------
+let step = 0; // 0 = intro, 1..6 = questions, 7 = email gate, 8 = result
+let scores = { approval: 0, perfectionism: 0, scarcity: 0, identity: 0 };
+let answers = [];
+let leadEmail = "";
+let leadInstagram = "";
+let leadReflection = "";
+let isSubmitting = false;
+const SESSION_ID = (window.crypto && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : Date.now() + '-' + Math.random().toString(36).slice(2);
+
+// Fire-and-forget: logs the session's current step without blocking the UI.
+function trackProgress(stepLabel){
+  if(!SCRIPT_URL) return;
+  try{
+    fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'progress',
+        sessionId: SESSION_ID,
+        step: stepLabel,
+        ts: new Date().toISOString()
+      })
+    }).catch(function(e){ console.error('Progress tracking error (non-blocking):', e); });
+  }catch(e){
+    console.error('Progress tracking error (non-blocking):', e);
+  }
+}
+
+const card = document.getElementById('card');
+const barFill = document.getElementById('barFill');
+const stepLabel = document.getElementById('stepLabel');
+
+function updateProgress(){
+  const total = QUESTIONS.length + 2; // + reflection + gate
+  const pct = step === 0 ? 0 : Math.min(100, Math.round((step / total) * 100));
+  barFill.style.width = pct + '%';
+  if(step === 0) stepLabel.textContent = 'START';
+  else if(step <= QUESTIONS.length) stepLabel.textContent = String(step).padStart(2,'0') + ' / ' + String(QUESTIONS.length).padStart(2,'0');
+  else if(step === QUESTIONS.length + 1) stepLabel.textContent = 'ALMOST';
+  else if(step === QUESTIONS.length + 2) stepLabel.textContent = 'ALMOST';
+  else stepLabel.textContent = 'RESULT';
+}
+
+function render(){
+  updateProgress();
+  card.innerHTML = '';
+
+  if(step === 0){
+    renderIntro();
+  } else if(step >= 1 && step <= QUESTIONS.length){
+    trackProgress('q' + step);
+    renderQuestion(step - 1);
+  } else if(step === QUESTIONS.length + 1){
+    trackProgress('reflection');
+    renderReflection();
+  } else if(step === QUESTIONS.length + 2){
+    trackProgress('email_gate');
+    renderEmailGate();
+  } else {
+    renderResult();
+  }
+}
+
+function renderReflection(){
+  const h1 = document.createElement('h1');
+  h1.style.fontSize = '26px';
+  h1.textContent = 'One more thing, in your own words.';
+  const p = document.createElement('p');
+  p.className = 'lede';
+  p.textContent = "What do you think is really stopping you? There's no wrong answer, this just helps us understand your specific situation before your result.";
+
+  const textArea = document.createElement('textarea');
+  textArea.className = 'field';
+  textArea.placeholder = 'Type a sentence or two\u2026';
+  textArea.id = 'reflectionInput';
+  textArea.rows = 3;
+  textArea.style.resize = 'vertical';
+  textArea.style.fontFamily = "'Inter',sans-serif";
+
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.gap = '12px';
+  row.style.marginTop = '18px';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.style.marginTop = '0';
+  btn.textContent = 'Continue';
+  btn.onclick = () => {
+    leadReflection = textArea.value.trim();
+    step += 1;
+    render();
+  };
+
+  const skip = document.createElement('button');
+  skip.className = 'btn';
+  skip.style.marginTop = '0';
+  skip.style.background = 'transparent';
+  skip.style.color = 'var(--text-dim)';
+  skip.style.border = '1px solid var(--line)';
+  skip.textContent = 'Skip';
+  skip.onclick = () => { leadReflection = ''; step += 1; render(); };
+
+  row.appendChild(btn); row.appendChild(skip);
+  card.appendChild(h1); card.appendChild(p); card.appendChild(textArea); card.appendChild(row);
+}
+
+function renderIntro(){
+  const h1 = document.createElement('h1');
+  h1.textContent = 'Find the ceiling that\u2019s actually slowing you down.';
+  const p = document.createElement('p');
+  p.className = 'lede';
+  p.textContent = 'Six questions, about two minutes. This identifies the specific pattern capping your growth right now, not a generic personality type, the actual mechanism.';
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = 'Start';
+  btn.onclick = () => { step = 1; render(); };
+  card.appendChild(h1); card.appendChild(p); card.appendChild(btn);
+}
+
+function renderQuestion(i){
+  const question = QUESTIONS[i];
+  const qEl = document.createElement('div');
+  qEl.className = 'q';
+  qEl.textContent = question.q;
+  card.appendChild(qEl);
+
+  question.opts.forEach(opt => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = opt.t;
+    b.onclick = () => {
+      const weight = question.weight || 1;
+      scores[opt.a] += weight;
+      answers.push({ q: question.q, chosen: opt.t, archetype: opt.a });
+      step += 1;
+      render();
+    };
+    card.appendChild(b);
+  });
+}
+
+function renderEmailGate(){
+  const h1 = document.createElement('h1');
+  h1.style.fontSize = '26px';
+  h1.textContent = 'Where should we send your result?';
+  const p = document.createElement('p');
+  p.className = 'lede';
+  p.textContent = 'Your ceiling and the reasoning behind it, on the next screen.';
+
+  const igInput = document.createElement('input');
+  igInput.className = 'field';
+  igInput.placeholder = 'Instagram handle';
+  igInput.id = 'igInput';
+
+  const emailInput = document.createElement('input');
+  emailInput.className = 'field';
+  emailInput.placeholder = 'Email';
+  emailInput.id = 'emailInput';
+  emailInput.style.marginTop = '14px';
+
+  const err = document.createElement('div');
+  err.className = 'err';
+  err.id = 'gateErr';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.style.marginTop = '18px';
+  btn.textContent = 'Show my result';
+  btn.onclick = async () => {
+    if(isSubmitting) return;
+    let ig = igInput.value.trim();
+    const email = emailInput.value.trim();
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if(!ig){ err.textContent = 'Enter your Instagram handle.'; igInput.focus(); return; }
+    if(!emailValid){ err.textContent = 'Enter a valid email.'; emailInput.focus(); return; }
+    if(!ig.startsWith('@')) ig = '@' + ig;
+    err.textContent = '';
+    isSubmitting = true;
+    btn.disabled = true;
+    btn.textContent = 'Sending\u2026';
+    leadInstagram = ig; leadEmail = email;
+    await saveLead();
+    step += 1;
+    render();
+  };
+
+  card.appendChild(h1); card.appendChild(p);
+  card.appendChild(igInput); card.appendChild(emailInput);
+  card.appendChild(err); card.appendChild(btn);
+}
+
+function topArchetype(){
+  let best = 'identity', bestScore = -1;
+  for(const k in scores){
+    if(scores[k] > bestScore){ bestScore = scores[k]; best = k; }
+  }
+  return best;
+}
+
+async function saveLead(){
+  const archetype = topArchetype();
+  const record = {
+    action: 'complete',
+    sessionId: SESSION_ID,
+    email: leadEmail,
+    instagram: leadInstagram,
+    reflection: leadReflection,
+    archetype: archetype,
+    scores: scores,
+    answers: answers,
+    ts: new Date().toISOString()
+  };
+  if(!SCRIPT_URL){
+    console.warn('SCRIPT_URL not set, lead not logged:', record);
+    return;
+  }
+  try{
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight, same as the intake form
+      body: JSON.stringify(record)
+    });
+  }catch(e){
+    console.error('Lead logging error (non-blocking):', e);
+  }
+}
+
+function renderResult(){
+  const archetype = topArchetype();
+  const r = RESULTS[archetype];
+
+  const tag = document.createElement('div');
+  tag.className = 'result-tag';
+  tag.textContent = r.tag;
+
+  const h1 = document.createElement('h1');
+  h1.style.fontSize = '25px';
+  h1.textContent = r.title;
+
+  const body = document.createElement('p');
+  body.className = 'result-body';
+  body.textContent = r.body;
+
+  const mechH = document.createElement('div');
+  mechH.className = 'result-h';
+  mechH.textContent = 'Why this happens';
+  const mechP = document.createElement('p');
+  mechP.className = 'result-p';
+  mechP.textContent = r.mechanism;
+
+  const signsH = document.createElement('div');
+  signsH.className = 'result-h';
+  signsH.textContent = 'How this shows up';
+  const signsList = document.createElement('ul');
+  signsList.className = 'result-list';
+  r.signs.forEach(s => {
+    const li = document.createElement('li');
+    li.textContent = s;
+    signsList.appendChild(li);
+  });
+
+  const shiftH = document.createElement('div');
+  shiftH.className = 'result-h';
+  shiftH.textContent = 'What changes when it resolves';
+  const shiftP = document.createElement('p');
+  shiftP.className = 'result-p';
+  shiftP.textContent = r.shift;
+
+  const route = document.createElement('div');
+  route.className = 'result-route';
+  route.innerHTML = 'Recommended next step: <b>' + r.offer + '</b><br>' + r.route;
+
+  card.appendChild(tag); card.appendChild(h1); card.appendChild(body);
+  card.appendChild(mechH); card.appendChild(mechP);
+  card.appendChild(signsH); card.appendChild(signsList);
+  card.appendChild(shiftH); card.appendChild(shiftP);
+  card.appendChild(route);
+
+  if(r.note){
+    const note = document.createElement('div');
+    note.className = 'result-note';
+    note.textContent = r.note;
+    card.appendChild(note);
+  }
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'btn-row';
+
+  const btn = document.createElement('a');
+  btn.className = 'btn';
+  btn.style.display = 'inline-block';
+  btn.style.textDecoration = 'none';
+  btn.style.marginTop = '0';
+  btn.href = r.link;
+  btn.target = '_blank';
+  btn.rel = 'noopener';
+  btn.textContent = r.ctaLabel;
+
+  const dl = document.createElement('button');
+  dl.className = 'btn-secondary';
+  dl.textContent = 'Download your result';
+  dl.onclick = () => downloadResultPDF(archetype);
+
+  btnRow.appendChild(btn); btnRow.appendChild(dl);
+  card.appendChild(btnRow);
+}
+
+function downloadResultPDF(archetype){
+  try{
+    const r = RESULTS[archetype];
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const margin = 56, width = 483;
+    let y = 70;
+
+    function addLines(lines, size, gap, bold){
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      lines.forEach(line => {
+        if(y > 780){ doc.addPage(); y = 70; }
+        doc.text(line, margin, y);
+        y += gap;
+      });
+    }
+
+    addLines(doc.splitTextToSize(r.tag.toUpperCase(), width), 10, 14, true);
+    y += 6;
+    addLines(doc.splitTextToSize(r.title, width), 17, 22, true);
+    y += 8;
+    addLines(doc.splitTextToSize(r.body, width), 11, 15, false);
+    y += 14;
+
+    addLines(['Why this happens'], 13, 18, true);
+    addLines(doc.splitTextToSize(r.mechanism, width), 11, 15, false);
+    y += 14;
+
+    addLines(['How this shows up'], 13, 18, true);
+    r.signs.forEach(s => addLines(doc.splitTextToSize('\u2022 ' + s, width), 11, 15, false));
+    y += 14;
+
+    addLines(['What changes when it resolves'], 13, 18, true);
+    addLines(doc.splitTextToSize(r.shift, width), 11, 15, false);
+    y += 14;
+
+    addLines(['Recommended next step: ' + r.offer], 12, 16, true);
+    addLines(doc.splitTextToSize(r.route, width), 11, 15, false);
+
+    if(leadReflection){
+      y += 14;
+      addLines(['In your own words'], 13, 18, true);
+      addLines(doc.splitTextToSize(leadReflection, width), 11, 15, false);
+    }
+
+    doc.save('neural-recoding-' + archetype + '-diagnostic.pdf');
+  }catch(e){
+    console.error('PDF generation error:', e);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
