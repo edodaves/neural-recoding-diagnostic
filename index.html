@@ -134,6 +134,10 @@ const LINKS = {
 // Leave empty to skip lead logging (e.g. while testing locally).
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHXflfqQrCRGqoqgA5Z_Q1dadTC38w6CHWf8K8SYtWQsL2OnYHvipwsdezt5m-otT9/exec";
 
+// Nous: completed diagnostics land in the coach's dashboard, where each one can
+// be turned into a member account with the result already attached.
+const NOUS_URL = "https://edo-nous.vercel.app/api/diagnostic";
+
 // ---------- QUESTIONS ----------
 const QUESTIONS = [
   {
@@ -508,12 +512,26 @@ async function saveLead(){
     console.warn('SCRIPT_URL not set, lead not logged:', record);
     return;
   }
-  try{
-    await fetch(SCRIPT_URL, {
+  const body = JSON.stringify(record);
+  // Both destinations, independently: neither one failing should cost the other.
+  const sends = [
+    fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight, same as the intake form
-      body: JSON.stringify(record)
-    });
+      body: body
+    }).catch(function(e){ console.error('Sheet logging error (non-blocking):', e); })
+  ];
+  if(NOUS_URL){
+    sends.push(
+      fetch(NOUS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: body
+      }).catch(function(e){ console.error('Nous logging error (non-blocking):', e); })
+    );
+  }
+  try{
+    await Promise.all(sends);
   }catch(e){
     console.error('Lead logging error (non-blocking):', e);
   }
