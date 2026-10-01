@@ -5,98 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find your ceiling: Neural Recoding diagnostic</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Alex+Brush&family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root{
-    --bg:#0E0E0D;
-    --panel:#171615;
-    --line:#2B2926;
-    --text:#EDEBE4;
-    --text-dim:#9C988E;
-    --accent:#A9C2CC;
-    --accent-dim:#54707B;
+    --bg:#000000;
+    --panel:#0A0A0A;
+    --line:rgba(255,255,255,0.14);
+    --text:#F5F5F2;
+    --text-dim:#8C8C8C;
+    --accent:#FFFFFF;
+    --accent-dim:#5A5A5A;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
-  body{display:flex;align-items:center;justify-content:center;padding:32px 20px;}
+  body{display:flex;align-items:center;justify-content:center;padding:48px 24px;}
 
-  .frame{width:100%;max-width:560px;}
+  .frame{width:100%;max-width:580px;}
+
+  .wordmark{
+    font-family:'Alex Brush',cursive;font-weight:400;font-size:38px;line-height:1;color:var(--text);
+    text-align:center;margin-bottom:8px;
+  }
+  .wordmark-sub{
+    font-family:'Instrument Serif',serif;font-weight:400;font-size:13px;color:var(--text-dim);
+    text-align:center;letter-spacing:0.06em;margin-bottom:52px;
+  }
 
   .eyebrow{
-    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.08em;
     color:var(--text-dim);display:flex;justify-content:space-between;align-items:center;
-    margin-bottom:20px;
+    margin-bottom:36px;
   }
-  .bracket{position:relative;flex:1;height:1px;background:var(--line);margin:0 16px;}
+  .bracket{position:relative;flex:1;height:1px;background:var(--line);margin:0 20px;}
   .bracket::before,.bracket::after{content:'';position:absolute;top:-4px;width:1px;height:9px;background:var(--line);}
   .bracket::before{left:0;} .bracket::after{right:0;}
   .bracket-fill{position:absolute;top:0;left:0;height:1px;background:var(--accent);transition:width .5s ease;}
 
   .card{
-    background:var(--panel);border:1px solid var(--line);border-radius:2px;
-    padding:44px 36px;min-height:340px;display:flex;flex-direction:column;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:68px 52px;min-height:380px;display:flex;flex-direction:column;
   }
 
-  h1{font-family:'Fraunces',serif;font-weight:500;font-size:34px;line-height:1.15;margin-bottom:16px;}
-  .lede{font-size:15px;line-height:1.6;color:var(--text-dim);margin-bottom:28px;}
+  h1{font-family:'Playfair Display',serif;font-weight:500;font-size:26px;line-height:1.35;margin-bottom:28px;}
+  .lede{font-size:12.5px;line-height:1.9;color:var(--text-dim);margin-bottom:48px;}
 
-  .q{font-family:'Fraunces',serif;font-weight:400;font-size:22px;line-height:1.35;margin-bottom:28px;}
+  .q{font-family:'Playfair Display',serif;font-weight:400;font-size:18px;line-height:1.6;margin-bottom:48px;}
 
   .opt{
-    display:block;width:100%;text-align:left;background:transparent;
+    display:block;width:100%;text-align:left;background:rgba(255,255,255,0.03);
     border:1px solid var(--line);color:var(--text);font-family:'Inter',sans-serif;
-    font-size:15px;line-height:1.5;padding:16px 18px;margin-bottom:10px;
-    border-radius:2px;cursor:pointer;transition:border-color .15s,background .15s;
+    font-size:12.5px;line-height:1.65;padding:18px 22px;margin-bottom:14px;
+    border-radius:999px;cursor:pointer;transition:border-color .15s,background .15s;
   }
-  .opt:hover{border-color:var(--accent-dim);background:rgba(169,194,204,0.08);}
+  .opt:hover{border-color:var(--accent-dim);background:rgba(255,255,255,0.08);}
   .opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
   .btn{
-    background:var(--accent);color:#0F1A1E;border:none;font-family:'Inter',sans-serif;
-    font-weight:500;font-size:15px;padding:14px 28px;border-radius:2px;cursor:pointer;
+    background:var(--accent);color:#0A0A0A;border:none;font-family:'Inter',sans-serif;
+    font-weight:500;font-size:12.5px;padding:15px 30px;border-radius:999px;cursor:pointer;
     margin-top:auto;align-self:flex-start;transition:opacity .15s;
   }
-  .btn:hover{opacity:0.88;}
+  .btn:hover{opacity:0.85;}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .btn:disabled{opacity:0.4;cursor:not-allowed;}
 
   .field{
     background:transparent;border:none;border-bottom:1px solid var(--line);
-    color:var(--text);font-family:'Inter',sans-serif;font-size:16px;
-    padding:10px 2px;width:100%;margin-bottom:8px;
+    color:var(--text);font-family:'Inter',sans-serif;font-size:13px;
+    padding:14px 2px;width:100%;margin-bottom:24px;
   }
   .field:focus{outline:none;border-bottom-color:var(--accent);}
   .field::placeholder{color:var(--text-dim);}
-  .err{color:var(--accent);font-size:13px;margin-bottom:12px;min-height:16px;}
+  .err{color:var(--text);font-size:12px;margin-bottom:18px;min-height:16px;}
 
   .result-tag{
-    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;
-    color:var(--accent);margin-bottom:14px;text-transform:uppercase;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;
+    color:var(--text-dim);margin-bottom:26px;text-transform:uppercase;
   }
-  .result-body{font-size:15px;line-height:1.7;color:var(--text-dim);margin-bottom:8px;}
+  .result-body{font-size:12.5px;line-height:1.95;color:var(--text-dim);margin-bottom:22px;}
   .result-route{
-    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);
-    border-top:1px solid var(--line);padding-top:16px;margin-top:20px;margin-bottom:24px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);
+    border-top:1px solid var(--line);padding-top:32px;margin-top:44px;margin-bottom:44px;
+    line-height:1.95;letter-spacing:0.02em;
   }
   .result-route b{color:var(--text);font-weight:500;}
 
-  .result-h{font-family:'Fraunces',serif;font-weight:500;font-size:16px;margin:26px 0 10px;}
-  .result-p{font-size:14.5px;line-height:1.75;color:var(--text-dim);margin-bottom:4px;}
-  .result-list{list-style:none;margin:6px 0 4px;}
+  .result-h{font-family:'Playfair Display',serif;font-weight:500;font-size:13.5px;margin:52px 0 24px;display:flex;align-items:center;gap:18px;}
+  .result-h::after{content:'';flex:1;height:1px;background:var(--line);}
+  .result-p{font-size:12.5px;line-height:2;color:var(--text-dim);margin-bottom:8px;}
+  .result-list{list-style:none;margin:10px 0 4px;}
   .result-list li{
-    font-size:14.5px;line-height:1.6;color:var(--text-dim);padding:9px 0 9px 20px;
+    font-size:12.5px;line-height:1.85;color:var(--text-dim);padding:17px 0 17px 24px;
     border-bottom:1px solid var(--line);position:relative;
   }
   .result-list li:last-child{border-bottom:none;}
   .result-list li::before{content:'\2022';position:absolute;left:2px;color:var(--accent-dim);}
   .result-note{
-    font-size:13px;line-height:1.65;color:var(--text-dim);background:rgba(169,194,204,0.06);
-    border:1px solid var(--line);border-radius:2px;padding:14px 16px;margin:18px 0 22px;
+    font-size:11.5px;line-height:1.9;color:var(--text-dim);background:rgba(255,255,255,0.04);
+    border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin:36px 0 40px;
   }
-  .btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:auto;}
+  .btn-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:14px;}
   .btn-secondary{
     background:transparent;color:var(--text-dim);border:1px solid var(--line);
-    font-family:'Inter',sans-serif;font-size:15px;padding:14px 24px;border-radius:2px;
+    font-family:'Inter',sans-serif;font-size:12.5px;padding:15px 26px;border-radius:999px;
     cursor:pointer;transition:border-color .15s,color .15s;
   }
   .btn-secondary:hover{border-color:var(--accent-dim);color:var(--text);}
@@ -104,9 +115,11 @@
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
 
   @media (max-width:480px){
-    .card{padding:32px 22px;}
-    h1{font-size:27px;}
-    .q{font-size:19px;}
+    .card{padding:44px 26px;}
+    h1{font-size:24px;}
+    .q{font-size:17px;}
+    .wordmark{font-size:28px;}
+    .wordmark-sub{margin-bottom:32px;}
   }
 </style>
 </head>
@@ -114,10 +127,12 @@
 <h2 class="sr-only">A short diagnostic quiz that identifies your entrepreneurial growth ceiling, then routes you to the matching Neural Recoding offer.</h2>
 
 <div class="frame">
+  <div class="wordmark">Edo Daves</div>
+  <div class="wordmark-sub">Neural Recoding&trade;</div>
   <div class="eyebrow">
     <span id="stepLabel">START</span>
     <span class="bracket"><span class="bracket-fill" id="barFill" style="width:0%"></span></span>
-    <span>NEURAL RECODING</span>
+    <span>CEILING TEST</span>
   </div>
   <div class="card" id="card"></div>
 </div>
@@ -133,10 +148,6 @@ const LINKS = {
 // Paste your Apps Script /exec URL here (same pattern as the intake form).
 // Leave empty to skip lead logging (e.g. while testing locally).
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHXflfqQrCRGqoqgA5Z_Q1dadTC38w6CHWf8K8SYtWQsL2OnYHvipwsdezt5m-otT9/exec";
-
-// Nous: completed diagnostics land in the coach's dashboard, where each one can
-// be turned into a member account with the result already attached.
-const NOUS_URL = "https://edo-nous.vercel.app/api/diagnostic";
 
 // ---------- QUESTIONS ----------
 const QUESTIONS = [
@@ -407,7 +418,7 @@ function renderIntro(){
   h1.textContent = 'Find the ceiling that\u2019s actually slowing you down.';
   const p = document.createElement('p');
   p.className = 'lede';
-  p.textContent = 'Six questions, about two minutes. This identifies the specific pattern capping your growth right now, not a generic personality type, the actual mechanism.';
+  p.textContent = 'Eight questions, about two minutes. This identifies the specific pattern capping your growth right now, not a generic personality type, the actual mechanism.';
   const btn = document.createElement('button');
   btn.className = 'btn';
   btn.textContent = 'Start';
@@ -512,26 +523,12 @@ async function saveLead(){
     console.warn('SCRIPT_URL not set, lead not logged:', record);
     return;
   }
-  const body = JSON.stringify(record);
-  // Both destinations, independently: neither one failing should cost the other.
-  const sends = [
-    fetch(SCRIPT_URL, {
+  try{
+    await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight, same as the intake form
-      body: body
-    }).catch(function(e){ console.error('Sheet logging error (non-blocking):', e); })
-  ];
-  if(NOUS_URL){
-    sends.push(
-      fetch(NOUS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: body
-      }).catch(function(e){ console.error('Nous logging error (non-blocking):', e); })
-    );
-  }
-  try{
-    await Promise.all(sends);
+      body: JSON.stringify(record)
+    });
   }catch(e){
     console.error('Lead logging error (non-blocking):', e);
   }
