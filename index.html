@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find your ceiling: Neural Recoding diagnostic</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Alex+Brush&family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Alex+Brush&family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root{
     --bg:#000000;
@@ -50,6 +50,7 @@
   .lede{font-size:12.5px;line-height:1.9;color:var(--text-dim);margin-bottom:48px;}
 
   .q{font-family:'Playfair Display',serif;font-weight:400;font-size:18px;line-height:1.6;margin-bottom:48px;}
+  .q-hint{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-dim);text-transform:uppercase;margin:-30px 0 30px;}
 
   .opt{
     display:block;width:100%;text-align:left;background:rgba(255,255,255,0.03);
@@ -59,6 +60,9 @@
   }
   .opt:hover{border-color:var(--accent-dim);background:rgba(255,255,255,0.08);}
   .opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .opt.sel{border-color:var(--accent);background:rgba(255,255,255,0.10);}
+  .opt.na{color:var(--text-dim);margin-top:22px;}
+  .opt.na.sel{color:var(--text);}
 
   .btn{
     background:var(--accent);color:#0A0A0A;border:none;font-family:'Inter',sans-serif;
@@ -78,18 +82,110 @@
   .field::placeholder{color:var(--text-dim);}
   .err{color:var(--text);font-size:12px;margin-bottom:18px;min-height:16px;}
 
+  /* ---------- first screen: voice note or text ---------- */
+  .prompts{list-style:none;margin:0 0 36px;}
+  .prompts li{font-size:12.5px;line-height:1.75;color:var(--text-dim);padding:7px 0 7px 36px;position:relative;}
+  .prompts li::before{
+    content:attr(data-n);position:absolute;left:0;top:9px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;color:var(--accent-dim);
+  }
+  .voice{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+  .mic{
+    width:54px;height:54px;flex:none;border-radius:50%;border:1px solid var(--line);
+    background:rgba(255,255,255,0.03);color:var(--text);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,color .15s;
+  }
+  .mic:hover{border-color:var(--accent-dim);background:rgba(255,255,255,0.08);}
+  .mic:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  .mic svg{width:20px;height:20px;}
+  .mic.rec{background:var(--accent);border-color:var(--accent);color:#0A0A0A;animation:pulse 1.6s ease-out infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,255,255,0.35);}
+    70%{box-shadow:0 0 0 14px rgba(255,255,255,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}
+  }
+  .voice-status{flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.05em;line-height:1.6;color:var(--text-dim);}
+  .lang{
+    background:transparent;border:1px solid var(--line);color:var(--text-dim);border-radius:999px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;padding:7px 10px;cursor:pointer;
+  }
+  .lang option{background:#0A0A0A;color:var(--text);}
+  .voice-note{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.04em;line-height:1.7;color:var(--text-dim);margin-bottom:16px;}
+  .box{
+    width:100%;min-height:180px;resize:vertical;background:rgba(255,255,255,0.02);
+    border:1px solid var(--line);border-radius:12px;color:var(--text);
+    font-family:'Inter',sans-serif;font-size:13px;line-height:1.8;padding:18px 20px;
+  }
+  .box.small{min-height:120px;margin-bottom:28px;}
+  .box:focus{outline:none;border-color:var(--accent-dim);}
+  .box::placeholder{color:var(--text-dim);}
+  .meta{
+    display:flex;justify-content:space-between;gap:12px;margin:12px 0 26px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.05em;color:var(--text-dim);
+  }
+  .privacy{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.04em;line-height:1.7;color:var(--accent-dim);margin-bottom:26px;}
+
+  /* ---------- questions ---------- */
+  .heard{border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:44px;}
+  .heard-top{display:flex;justify-content:space-between;align-items:center;}
+  .heard-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;}
+  .heard p{font-size:12.5px;line-height:1.85;color:var(--text);margin-top:10px;}
+  .link{
+    background:none;border:none;cursor:pointer;color:var(--text-dim);text-decoration:underline;text-underline-offset:3px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  }
+  .link:hover{color:var(--text);}
+  .statement{
+    font-family:'Playfair Display',serif;font-style:italic;font-size:20px;line-height:1.55;
+    margin:-26px 0 38px;padding-left:18px;border-left:1px solid var(--line);
+  }
+  .scale{display:flex;gap:10px;margin-bottom:12px;}
+  .scale button{
+    flex:1;height:52px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,0.03);
+    color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  .scale button:hover{border-color:var(--accent-dim);background:rgba(255,255,255,0.08);}
+  .scale button.sel{border-color:var(--accent);background:rgba(255,255,255,0.12);}
+  .scale button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .scale-ends{
+    display:flex;justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;
+  }
+
+  /* ---------- loading ---------- */
+  .loading{flex:1;display:flex;flex-direction:column;justify-content:center;gap:26px;}
+  .loading-text{font-family:'Playfair Display',serif;font-size:19px;}
+  .loading-line{position:relative;height:1px;background:var(--line);overflow:hidden;}
+  .loading-line::after{
+    content:'';position:absolute;top:0;left:-30%;width:30%;height:1px;background:var(--accent);
+    animation:slide 1.4s ease-in-out infinite;
+  }
+  @keyframes slide{to{left:100%;}}
+
+  /* ---------- result ---------- */
   .result-tag{
     font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;
     color:var(--text-dim);margin-bottom:26px;text-transform:uppercase;
   }
   .result-body{font-size:12.5px;line-height:1.95;color:var(--text-dim);margin-bottom:22px;}
+  .map{margin:4px 0 8px;}
+  .map-row{padding:18px 0;border-bottom:1px solid var(--line);}
+  .map-row:last-child{border-bottom:none;}
+  .map-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
+  .map-name{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);}
+  .map-row.top .map-name{color:var(--text);}
+  .map-pct{font-family:'Playfair Display',serif;font-size:21px;color:var(--text-dim);}
+  .map-row.top .map-pct{color:var(--text);}
+  .map-track{height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+  .map-fill{height:2px;width:0;background:var(--accent-dim);transition:width 1s ease;}
+  .map-row.top .map-fill{background:var(--accent);}
+  .map-line{font-size:11.5px;line-height:1.75;color:var(--text-dim);margin-top:12px;}
   .result-route{
     font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);
     border-top:1px solid var(--line);padding-top:32px;margin-top:44px;margin-bottom:44px;
     line-height:1.95;letter-spacing:0.02em;
   }
   .result-route b{color:var(--text);font-weight:500;}
-
   .result-h{font-family:'Playfair Display',serif;font-weight:500;font-size:13.5px;margin:52px 0 24px;display:flex;align-items:center;gap:18px;}
   .result-h::after{content:'';flex:1;height:1px;background:var(--line);}
   .result-p{font-size:12.5px;line-height:2;color:var(--text-dim);margin-bottom:8px;}
@@ -104,27 +200,37 @@
     font-size:11.5px;line-height:1.9;color:var(--text-dim);background:rgba(255,255,255,0.04);
     border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin:36px 0 40px;
   }
-  .btn-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:14px;}
+  .disclaimer{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.04em;line-height:1.8;color:var(--accent-dim);margin-top:34px;}
+  .btn-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:14px;align-items:center;}
   .btn-secondary{
     background:transparent;color:var(--text-dim);border:1px solid var(--line);
     font-family:'Inter',sans-serif;font-size:12.5px;padding:15px 26px;border-radius:999px;
     cursor:pointer;transition:border-color .15s,color .15s;
   }
   .btn-secondary:hover{border-color:var(--accent-dim);color:var(--text);}
+  .btn-secondary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
 
   @media (max-width:480px){
-    .card{padding:44px 26px;}
+    body{padding:36px 16px;}
+    .card{padding:44px 24px;}
     h1{font-size:24px;}
     .q{font-size:17px;}
+    .statement{font-size:18px;}
     .wordmark{font-size:28px;}
     .wordmark-sub{margin-bottom:32px;}
+    .scale{gap:7px;}
+    .scale button{height:48px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .mic.rec,.loading-line::after{animation:none;}
+    .map-fill,.bracket-fill{transition:none;}
   }
 </style>
 </head>
 <body>
-<h2 class="sr-only">A short diagnostic quiz that identifies your entrepreneurial growth ceiling, then routes you to the matching Neural Recoding offer.</h2>
+<h2 class="sr-only">A short adaptive diagnostic that maps the patterns capping your growth, then routes you to the matching Neural Recoding offer.</h2>
 
 <div class="frame">
   <div class="wordmark">Edo Daves</div>
@@ -139,94 +245,18 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-// ---------- CONFIG: replace these with your real booking links ----------
+// ---------- CONFIG ----------
 const LINKS = {
   mvp: "https://booking.edodaves.com/neural-recoding-mvp",
   session: "https://booking.edodaves.com/30min-connection-call",
   collective: "https://zenithapplication.netlify.app/"
 };
-// Paste your Apps Script /exec URL here (same pattern as the intake form).
-// Leave empty to skip lead logging (e.g. while testing locally).
+// Apps Script /exec URL for lead logging. Leave empty to skip logging while testing.
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHXflfqQrCRGqoqgA5Z_Q1dadTC38w6CHWf8K8SYtWQsL2OnYHvipwsdezt5m-otT9/exec";
+// The adaptive engine (api/diagnostic.js on Vercel).
+const API_URL = "/api/diagnostic";
 
-// ---------- QUESTIONS ----------
-const QUESTIONS = [
-  {
-    q: "When you hit a plateau in your business, what actually happens in your head?",
-    opts: [
-      { t: "I convince myself the timing isn't right yet", a: "scarcity" },
-      { t: "I redo the work until it's \u201cgood enough\u201d to show anyone", a: "perfectionism" },
-      { t: "I quietly pull back rather than risk being seen struggling", a: "approval" },
-      { t: "I know exactly what to do, I just don't do it", a: "identity" }
-    ]
-  },
-  {
-    q: "What's true about how you talk about your own success?",
-    opts: [
-      { t: "I downplay it before anyone else can", a: "approval" },
-      { t: "I attribute it to luck or timing", a: "scarcity" },
-      { t: "I mention what's still wrong with it", a: "perfectionism" },
-      { t: "I feel like a fraud claiming it", a: "identity" }
-    ]
-  },
-  {
-    q: "What stops you from charging what you're actually worth?",
-    opts: [
-      { t: "Fear there won't be enough clients if I raise prices", a: "scarcity" },
-      { t: "The offer isn't polished enough yet", a: "perfectionism" },
-      { t: "Worry about what past clients or peers will think", a: "approval" },
-      { t: "It doesn't match how I see myself yet", a: "identity" }
-    ]
-  },
-  {
-    q: "How do you react to direct critical feedback?",
-    opts: [
-      { t: "I spiral on it longer than it deserves", a: "approval" },
-      { t: "I use it to justify more revision cycles", a: "perfectionism" },
-      { t: "I get defensive about resource constraints", a: "scarcity" },
-      { t: "I intellectually agree but nothing changes", a: "identity" }
-    ]
-  },
-  {
-    q: "What does your inner monologue sound like before a big move: a launch, a pitch, an ask?",
-    opts: [
-      { t: "\u201cWhat if this fails and confirms what people already think\u201d", a: "approval" },
-      { t: "\u201cThis needs one more pass\u201d", a: "perfectionism" },
-      { t: "\u201cI can't afford for this to not work\u201d", a: "scarcity" },
-      { t: "\u201cThis isn't really me\u201d", a: "identity" }
-    ]
-  },
-  {
-    q: "Finish this sentence: \u201cThe version of me who's already succeeding at this level would\u2026\u201d",
-    weight: 2,
-    opts: [
-      { t: "\u2026not need everyone's approval first", a: "approval" },
-      { t: "\u2026ship before it's perfect", a: "perfectionism" },
-      { t: "\u2026operate from abundance, not fear", a: "scarcity" },
-      { t: "\u2026already feel like this is who I am", a: "identity" }
-    ]
-  },
-  {
-    q: "When you imagine your business succeeding at the next level, what do you notice first?",
-    opts: [
-      { t: "How exposed that would make me", a: "approval" },
-      { t: "All the details I'd still need to fix", a: "perfectionism" },
-      { t: "The resources I'd need that I don't have yet", a: "scarcity" },
-      { t: "It doesn't quite feel like mine yet", a: "identity" }
-    ]
-  },
-  {
-    q: "What's the real cost of staying at your current level?",
-    opts: [
-      { t: "Nothing changes, and that feels strangely safe", a: "approval" },
-      { t: "I keep almost-launching but never actually shipping", a: "perfectionism" },
-      { t: "I keep trading time for money instead of building leverage", a: "scarcity" },
-      { t: "I keep performing a version of myself that isn't quite true", a: "identity" }
-    ]
-  }
-];
-
-// ---------- RESULTS ----------
+// ---------- PATTERN COPY ----------
 const RESULTS = {
   approval: {
     tag: "The approval ceiling",
@@ -249,7 +279,7 @@ const RESULTS = {
   },
   perfectionism: {
     tag: "The perfectionism ceiling",
-    title: "You've built a system where \u201cnot ready yet\u201d never actually resolves.",
+    title: "You've built a system where “not ready yet” never actually resolves.",
     body: "The revision isn't about quality anymore. It's a delay mechanism protecting you from the risk of being judged on a finished thing.",
     mechanism: "Perfectionism at this level isn't a work ethic problem. It's a threat-avoidance strategy wearing the costume of high standards. As long as the thing is technically unfinished, it can't be judged, so the anxiety of exposure gets postponed indefinitely instead of resolved. The real cost isn't the extra hours. It's that the business never gets tested against reality.",
     signs: [
@@ -257,9 +287,9 @@ const RESULTS = {
       "You know objectively the current version would work, and still don't send it",
       "You feel calmer while revising than in the moment before publishing",
       "Deadlines from other people work better on you than deadlines you set yourself",
-      "You call it \u201chigh standards\u201d even when it's costing you real revenue"
+      "You call it “high standards” even when it's costing you real revenue"
     ],
-    shift: "When this resolves, \u201cgood enough\u201d stops feeling like a compromise. You ship at 80% because you trust the next version will be informed by real feedback instead of imagined judgment.",
+    shift: "When this resolves, “good enough” stops feeling like a compromise. You ship at 80% because you trust the next version will be informed by real feedback instead of imagined judgment.",
     offer: "a Neural Recoding application session",
     route: "This pattern needs real pressure-testing, not a single conversation, and that's exactly what the application session is built for.",
     link: LINKS.session,
@@ -303,31 +333,54 @@ const RESULTS = {
   }
 };
 
+const PATTERNS = ['approval', 'perfectionism', 'scarcity', 'identity'];
+const NAMES = { approval: 'Approval', perfectionism: 'Perfectionism', scarcity: 'Scarcity', identity: 'Identity' };
+const SHORT = {
+  approval: 'Being seen got tied to being judged.',
+  perfectionism: '“Not ready yet” never resolves.',
+  scarcity: 'Old survival math about not having enough.',
+  identity: 'Your self-image is behind your goal.'
+};
+const NEUTRAL = "Doesn't apply to me";
+const MIN_CONTEXT = 40;
+const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+
 // ---------- STATE ----------
-let step = 0; // 0 = intro, 1..6 = questions, 7 = email gate, 8 = result
-let scores = { approval: 0, perfectionism: 0, scarcity: 0, identity: 0 };
-let answers = [];
-let leadEmail = "";
-let leadInstagram = "";
-let leadReflection = "";
-let isSubmitting = false;
+// view: capture | loading | question | gate | result | safety | error
+let view = 'capture';
+let S = blankSession();     // everything the engine needs, sent back on each call
+let captureDraft = '';      // text on the first screen before it's submitted
+let current = null;         // question on screen
+let draft = null;           // answer being built for it
+let finalData = null;       // map + result from the engine
+let busy = false;
+let loadingMsg = '';
+let retry = null;
+let errorMsg = '';
+let leadEmail = '';
+let leadInstagram = '';
 const SESSION_ID = (window.crypto && crypto.randomUUID)
   ? crypto.randomUUID()
   : Date.now() + '-' + Math.random().toString(36).slice(2);
 
+function blankSession(){ return { context: '', profile: null, heard: '', contextEvidence: [], facts: [], history: [], mode: '' }; }
+function emptyDraft(){ return { picks: [], na: false, value: null, text: '', skipped: false }; }
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text != null) e.textContent = text;
+  if(tag === 'button') e.type = 'button';
+  return e;
+}
+
 // Fire-and-forget: logs the session's current step without blocking the UI.
-function trackProgress(stepLabel){
+function trackProgress(stepName){
   if(!SCRIPT_URL) return;
   try{
     fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'progress',
-        sessionId: SESSION_ID,
-        step: stepLabel,
-        ts: new Date().toISOString()
-      })
+      body: JSON.stringify({ action: 'progress', sessionId: SESSION_ID, step: stepName, ts: new Date().toISOString() })
     }).catch(function(e){ console.error('Progress tracking error (non-blocking):', e); });
   }catch(e){
     console.error('Progress tracking error (non-blocking):', e);
@@ -339,328 +392,631 @@ const barFill = document.getElementById('barFill');
 const stepLabel = document.getElementById('stepLabel');
 
 function updateProgress(){
-  const total = QUESTIONS.length + 2; // + reflection + gate
-  const pct = step === 0 ? 0 : Math.min(100, Math.round((step / total) * 100));
+  if(view === 'loading' || view === 'error') return;
+  let label = 'START', pct = 0;
+  if(view === 'question'){
+    const n = S.history.length + 1;
+    label = 'Q ' + String(n).padStart(2, '0');
+    pct = Math.min(88, Math.round(n / 11 * 88));
+  } else if(view === 'gate'){ label = 'ALMOST'; pct = 94; }
+  else if(view === 'result'){ label = 'RESULT'; pct = 100; }
+  else if(view === 'safety'){ label = ''; pct = 0; }
+  stepLabel.textContent = label;
   barFill.style.width = pct + '%';
-  if(step === 0) stepLabel.textContent = 'START';
-  else if(step <= QUESTIONS.length) stepLabel.textContent = String(step).padStart(2,'0') + ' / ' + String(QUESTIONS.length).padStart(2,'0');
-  else if(step === QUESTIONS.length + 1) stepLabel.textContent = 'ALMOST';
-  else if(step === QUESTIONS.length + 2) stepLabel.textContent = 'ALMOST';
-  else stepLabel.textContent = 'RESULT';
 }
 
-function render(){
-  updateProgress();
-  card.innerHTML = '';
-
-  if(step === 0){
-    renderIntro();
-  } else if(step >= 1 && step <= QUESTIONS.length){
-    trackProgress('q' + step);
-    renderQuestion(step - 1);
-  } else if(step === QUESTIONS.length + 1){
-    trackProgress('reflection');
-    renderReflection();
-  } else if(step === QUESTIONS.length + 2){
-    trackProgress('email_gate');
-    renderEmailGate();
-  } else {
-    renderResult();
+// ---------- ENGINE CALLS ----------
+async function api(payload){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 70000);
+  try{
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+    let data = null;
+    try{ data = await r.json(); }catch(e){}
+    if(!r.ok || !data || data.error) throw new Error((data && data.error) || ('HTTP ' + r.status));
+    return data;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function renderReflection(){
-  const h1 = document.createElement('h1');
-  h1.style.fontSize = '26px';
-  h1.textContent = 'One more thing, in your own words.';
-  const p = document.createElement('p');
-  p.className = 'lede';
-  p.textContent = "What do you think is really stopping you? There's no wrong answer, this just helps us understand your specific situation before your result.";
+function call(payload, msg, onOk, onBack){
+  if(busy) return;
+  busy = true;
+  loadingMsg = msg;
+  view = 'loading';
+  render();
+  api(payload)
+    .then(async res => { busy = false; await onOk(res); })
+    .catch(err => {
+      busy = false;
+      console.error('Diagnostic error:', err);
+      retry = { payload, msg, onOk, onBack };
+      errorMsg = String((err && err.message) || '');
+      view = 'error';
+      render();
+    });
+}
 
-  const textArea = document.createElement('textarea');
-  textArea.className = 'field';
-  textArea.placeholder = 'Type a sentence or two\u2026';
-  textArea.id = 'reflectionInput';
-  textArea.rows = 3;
-  textArea.style.resize = 'vertical';
-  textArea.style.fontFamily = "'Inter',sans-serif";
+function pack(){
+  return {
+    context: S.context, profile: S.profile, heard: S.heard,
+    contextEvidence: S.contextEvidence, facts: S.facts,
+    history: S.history.map(h => ({ q: { id: h.q.id, kind: h.q.kind, text: h.q.text }, answer: h.answer, evidence: h.evidence }))
+  };
+}
 
-  const row = document.createElement('div');
-  row.style.display = 'flex';
-  row.style.gap = '12px';
-  row.style.marginTop = '18px';
+// ---------- VOICE (the browser's own speech-to-text; the transcript lands in the text box) ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const UA = navigator.userAgent || '';
+const IS_ANDROID = /Android/i.test(UA);
+const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|Line\/|TikTok|musical_ly|Snapchat/i.test(UA);
+const VOICE_LANGS = [['en-US','EN'],['en-GB','EN-GB'],['it-IT','IT'],['es-ES','ES'],['de-DE','DE'],['fr-FR','FR'],['pt-BR','PT']];
+let voiceLang = 'en-US';
+let dict = null;
 
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.style.marginTop = '0';
-  btn.textContent = 'Continue';
-  btn.onclick = () => {
-    leadReflection = textArea.value.trim();
-    step += 1;
+function stopDictation(){
+  if(!dict) return;
+  const d = dict;
+  dict = null;
+  d.keep = false;
+  clearInterval(d.timer);
+  try{ d.rec.stop(); }catch(e){}
+  d.ui.idle();
+}
+
+function startDictation(ta, ui){
+  if(!SR) return;
+  stopDictation();
+  let rec;
+  try{ rec = new SR(); }catch(e){ ui.fail("Voice isn't available here. You can type instead."); return; }
+  const d = { rec, keep: true, started: Date.now(), timer: null, ui };
+  rec.lang = voiceLang;
+  rec.interimResults = true;
+  rec.continuous = !IS_ANDROID;   // Android repeats text in continuous mode, so restart per phrase instead
+  rec.maxAlternatives = 1;
+  let base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
+  rec.onresult = e => {
+    let fin = '', inter = '';
+    for(let i = 0; i < e.results.length; i++){
+      const t = (e.results[i][0].transcript || '').trim();
+      if(!t) continue;
+      if(e.results[i].isFinal) fin += (fin ? ' ' : '') + t;
+      else inter += (inter ? ' ' : '') + t;
+    }
+    ta.value = base + fin + (inter ? (fin ? ' ' : '') + inter : '');
+    ta.dispatchEvent(new Event('input'));
+  };
+  rec.onerror = e => {
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      d.keep = false;
+      ui.fail('Microphone blocked. Allow it in your browser settings, or type instead.');
+    } else if(e.error === 'audio-capture'){
+      d.keep = false;
+      ui.fail('No microphone found. You can type instead.');
+    }
+  };
+  rec.onend = () => {
+    if(d.keep && dict === d){
+      base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
+      try{ rec.start(); return; }catch(err){}
+    }
+    if(dict === d){ dict = null; clearInterval(d.timer); }
+    ui.idle();
+  };
+  try{ rec.start(); }catch(e){ ui.fail("Couldn't start the microphone. You can type instead."); return; }
+  dict = d;
+  d.timer = setInterval(() => {
+    const s = Math.floor((Date.now() - d.started) / 1000);
+    ui.tick(s);
+    if(s >= 300) stopDictation();
+  }, 500);
+  ui.recording();
+}
+
+function buildVoice(ta, idleText){
+  if(!SR){
+    return IN_APP ? el('div', 'voice-note', 'Voice notes work when you open this page in Safari or Chrome. Here, type it out.') : null;
+  }
+  const row = el('div', 'voice');
+  const mic = el('button', 'mic');
+  mic.innerHTML = MIC_SVG;
+  mic.setAttribute('aria-label', 'Record a voice note');
+  mic.setAttribute('aria-pressed', 'false');
+  const status = el('span', 'voice-status', idleText);
+  status.setAttribute('aria-live', 'polite');
+  const lang = el('select', 'lang');
+  lang.setAttribute('aria-label', 'Voice language');
+  VOICE_LANGS.forEach(([code, label]) => {
+    const o = el('option', null, label);
+    o.value = code;
+    if(code === voiceLang) o.selected = true;
+    lang.appendChild(o);
+  });
+  lang.onchange = () => { voiceLang = lang.value; stopDictation(); };
+  let failed = false;
+  const ui = {
+    recording(){ failed = false; mic.classList.add('rec'); mic.setAttribute('aria-pressed', 'true'); status.textContent = 'Recording 0:00. Tap to stop.'; },
+    tick(s){ status.textContent = 'Recording ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + '. Tap to stop.'; },
+    idle(){ mic.classList.remove('rec'); mic.setAttribute('aria-pressed', 'false'); if(!failed) status.textContent = ta.value.trim() ? 'Tap to add more by voice.' : idleText; },
+    fail(msg){ failed = true; mic.classList.remove('rec'); mic.setAttribute('aria-pressed', 'false'); status.textContent = msg; }
+  };
+  mic.onclick = () => { if(dict) stopDictation(); else startDictation(ta, ui); };
+  row.append(mic, status, lang);
+  return row;
+}
+
+// ---------- RENDER ----------
+function render(){
+  stopDictation();
+  updateProgress();
+  card.innerHTML = '';
+  ({
+    capture: renderCapture, loading: renderLoading, question: renderQuestion,
+    gate: renderGate, result: renderResult, safety: renderSafety, error: renderError
+  }[view] || renderCapture)();
+  if(window.scrollY > 120) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderCapture(){
+  const h1 = el('h1', null, 'Tell me where you’re at.');
+  const lede = el('p', 'lede', 'Send a voice note or type it out. Be specific. The more real you are, the sharper your result.');
+  lede.style.marginBottom = '30px';
+  const list = el('ol', 'prompts');
+  [
+    'Your business and where it’s at right now. Or what you’re planning to start.',
+    'Where you want to be, and by when.',
+    'What’s in the way, and why you think that is.'
+  ].forEach((t, i) => { const li = el('li', null, t); li.dataset.n = '0' + (i + 1); list.appendChild(li); });
+  card.append(h1, lede, list);
+
+  const ta = el('textarea', 'box');
+  ta.placeholder = 'Talk or type here…';
+  ta.setAttribute('aria-label', 'Where you’re at');
+  ta.value = captureDraft || S.context;
+  const voice = buildVoice(ta, 'Tap to record a voice note.');
+  if(voice) card.appendChild(voice);
+  card.appendChild(ta);
+
+  const meta = el('div', 'meta');
+  const count = el('span');
+  const hint = el('span');
+  meta.append(count, hint);
+  card.appendChild(meta);
+  card.appendChild(el('div', 'privacy', 'Private. Only used to build your result and prepare your call.'));
+
+  const row = el('div', 'btn-row');
+  const go = el('button', 'btn', 'Continue');
+  go.style.marginTop = '0';
+  row.appendChild(go);
+  card.appendChild(row);
+
+  const sync = () => {
+    captureDraft = ta.value;
+    const text = ta.value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    count.textContent = words + (words === 1 ? ' word' : ' words');
+    hint.textContent = text.length < MIN_CONTEXT ? 'A bit more detail' : (words < 60 ? 'More detail, sharper result' : 'Good');
+    go.disabled = text.length < MIN_CONTEXT;
+  };
+  ta.addEventListener('input', sync);
+  sync();
+  go.onclick = () => submitContext(ta.value.trim());
+}
+
+function submitContext(text){
+  if(text.length < MIN_CONTEXT) return;
+  stopDictation();
+  // unchanged text after "Edit": pick up where they left off
+  if(S.profile && text === S.context && (current || S.history.length)){
+    view = current ? 'question' : 'gate';
     render();
+    return;
+  }
+  S = blankSession();
+  S.context = text;
+  current = null; draft = null; finalData = null;
+  trackProgress('context');
+  call({ action: 'start', context: text }, 'Reading what you shared.', res => {
+    S.mode = res.mode || '';
+    S.profile = res.profile || {};
+    S.heard = res.heard || '';
+    S.contextEvidence = res.contextEvidence || [];
+    if(res.safety){ view = 'safety'; trackProgress('safety'); render(); return; }
+    current = res.question;
+    draft = emptyDraft();
+    view = 'question';
+    render();
+  }, () => { view = 'capture'; render(); });
+}
+
+function renderQuestion(){
+  const q = current, a = draft;
+  if(!q){ view = 'gate'; render(); return; }
+  trackProgress('q' + (S.history.length + 1));
+
+  if(S.history.length === 0 && S.heard){
+    const box = el('div', 'heard');
+    const top = el('div', 'heard-top');
+    top.appendChild(el('span', 'heard-label', 'What I heard'));
+    const edit = el('button', 'link', 'Edit');
+    edit.onclick = () => { captureDraft = S.context; view = 'capture'; render(); };
+    top.appendChild(edit);
+    box.append(top, el('p', null, S.heard));
+    card.appendChild(box);
+  }
+
+  card.appendChild(el('div', 'q', q.text));
+  if(q.format === 'scale') card.appendChild(el('div', 'statement', '“' + q.statement + '”'));
+  else card.appendChild(el('div', 'q-hint', q.format === 'multi' ? 'Select all that apply' : q.format === 'text' ? 'In your own words' : 'Pick one'));
+
+  const next = el('button', 'btn', 'Continue');
+  next.style.marginTop = '0';
+  const optBtns = [], scaleBtns = [];
+  let naBtn = null;
+  const paint = () => {
+    optBtns.forEach((b, i) => { const on = a.picks.indexOf(i) !== -1; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    scaleBtns.forEach((b, i) => { const on = a.value === i + 1; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    if(naBtn){ naBtn.classList.toggle('sel', a.na); naBtn.setAttribute('aria-pressed', a.na ? 'true' : 'false'); }
+    next.disabled = !ready(q, a);
   };
 
-  const skip = document.createElement('button');
-  skip.className = 'btn';
-  skip.style.marginTop = '0';
-  skip.style.background = 'transparent';
-  skip.style.color = 'var(--text-dim)';
-  skip.style.border = '1px solid var(--line)';
-  skip.textContent = 'Skip';
-  skip.onclick = () => { leadReflection = ''; step += 1; render(); };
+  if(q.format === 'single' || q.format === 'multi'){
+    q.opts.forEach((o, i) => {
+      const b = el('button', 'opt', o.t);
+      b.onclick = () => { pick(q, a, i); paint(); };
+      optBtns.push(b);
+      card.appendChild(b);
+    });
+    if(q.neutral){
+      naBtn = el('button', 'opt na', q.neutral);
+      naBtn.onclick = () => { a.na = !a.na; if(a.na) a.picks = []; paint(); };
+      card.appendChild(naBtn);
+    }
+    if(q.allowOpen){
+      const open = el('input', 'field');
+      open.placeholder = 'Something else? Say it in your own words (optional)';
+      open.value = a.text || '';
+      open.style.marginTop = '14px';
+      open.oninput = () => { a.text = open.value; paint(); };
+      card.appendChild(open);
+    }
+  } else if(q.format === 'scale'){
+    const row = el('div', 'scale');
+    for(let v = 1; v <= 5; v++){
+      const b = el('button', null, String(v));
+      b.setAttribute('aria-label', v + ' out of 5');
+      b.onclick = () => { a.value = v; a.na = false; paint(); };
+      scaleBtns.push(b);
+      row.appendChild(b);
+    }
+    const ends = el('div', 'scale-ends');
+    ends.append(el('span', null, 'Not at all'), el('span', null, 'Completely'));
+    naBtn = el('button', 'opt na', q.neutral || NEUTRAL);
+    naBtn.onclick = () => { a.na = !a.na; if(a.na) a.value = null; paint(); };
+    card.append(row, ends, naBtn);
+  } else {
+    const ta = el('textarea', 'box small');
+    ta.placeholder = 'Talk or type here…';
+    ta.setAttribute('aria-label', 'Your answer');
+    ta.value = a.text || '';
+    ta.addEventListener('input', () => { a.text = ta.value; a.skipped = false; paint(); });
+    const voice = buildVoice(ta, 'Tap to answer by voice.');
+    if(voice) card.appendChild(voice);
+    card.appendChild(ta);
+  }
 
-  row.appendChild(btn); row.appendChild(skip);
-  card.appendChild(h1); card.appendChild(p); card.appendChild(textArea); card.appendChild(row);
+  const row = el('div', 'btn-row');
+  const back = el('button', 'btn-secondary', 'Back');
+  back.onclick = goBack;
+  row.appendChild(back);
+  if(q.format === 'text'){
+    const skip = el('button', 'btn-secondary', 'Skip');
+    skip.onclick = () => { a.text = ''; a.skipped = true; submitAnswer(); };
+    row.appendChild(skip);
+  }
+  next.onclick = () => { if(ready(q, a)) submitAnswer(); };
+  row.appendChild(next);
+  card.appendChild(row);
+  paint();
 }
 
-function renderIntro(){
-  const h1 = document.createElement('h1');
-  h1.textContent = 'Find the ceiling that\u2019s actually slowing you down.';
-  const p = document.createElement('p');
-  p.className = 'lede';
-  p.textContent = 'Eight questions, about two minutes. This identifies the specific pattern capping your growth right now, not a generic personality type, the actual mechanism.';
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.textContent = 'Start';
-  btn.onclick = () => { step = 1; render(); };
-  card.appendChild(h1); card.appendChild(p); card.appendChild(btn);
+function pick(q, a, i){
+  a.na = false;
+  if(q.format === 'single'){ a.picks = a.picks[0] === i ? [] : [i]; return; }
+  if(a.picks.indexOf(i) !== -1) a.picks = a.picks.filter(x => x !== i);
+  else if(q.opts[i].x) a.picks = [i];                       // "None of these" style options stand alone
+  else { a.picks = a.picks.filter(x => !q.opts[x].x); a.picks.push(i); }
 }
 
-function renderQuestion(i){
-  const question = QUESTIONS[i];
-  const qEl = document.createElement('div');
-  qEl.className = 'q';
-  qEl.textContent = question.q;
-  card.appendChild(qEl);
+function ready(q, a){
+  const typed = (a.text || '').trim().length > 1;
+  if(q.format === 'scale') return !!a.value || a.na;
+  if(q.format === 'text') return typed;
+  return a.picks.length > 0 || a.na || typed;
+}
 
-  question.opts.forEach(opt => {
-    const b = document.createElement('button');
-    b.className = 'opt';
-    b.textContent = opt.t;
-    b.onclick = () => {
-      const weight = question.weight || 1;
-      scores[opt.a] += weight;
-      answers.push({ q: question.q, chosen: opt.t, archetype: opt.a });
-      step += 1;
-      render();
-    };
-    card.appendChild(b);
+function submitAnswer(){
+  stopDictation();
+  const entry = { q: current, answer: JSON.parse(JSON.stringify(draft)), evidence: [] };
+  S.history.push(entry);
+  call({ action: 'next', state: pack() }, 'Choosing your next question.', res => {
+    entry.evidence = res.lastEvidence || [];
+    (res.facts || []).forEach(f => { if(S.facts.length < 20) S.facts.push(f); });
+    if(res.mode) S.mode = res.mode;
+    if(res.safety){ view = 'safety'; trackProgress('safety'); render(); return; }
+    if(res.done || !res.question){ current = null; draft = null; view = 'gate'; render(); return; }
+    current = res.question;
+    draft = emptyDraft();
+    view = 'question';
+    render();
+  }, () => {
+    const e = S.history.pop();
+    current = e.q; draft = e.answer; view = 'question'; render();
   });
 }
 
-function renderEmailGate(){
-  const h1 = document.createElement('h1');
-  h1.style.fontSize = '26px';
-  h1.textContent = 'Where should we send your result?';
-  const p = document.createElement('p');
-  p.className = 'lede';
-  p.textContent = 'Your ceiling and the reasoning behind it, on the next screen.';
-
-  const igInput = document.createElement('input');
-  igInput.className = 'field';
-  igInput.placeholder = 'Instagram handle';
-  igInput.id = 'igInput';
-
-  const emailInput = document.createElement('input');
-  emailInput.className = 'field';
-  emailInput.placeholder = 'Email';
-  emailInput.id = 'emailInput';
-  emailInput.style.marginTop = '14px';
-
-  const err = document.createElement('div');
-  err.className = 'err';
-  err.id = 'gateErr';
-
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.style.marginTop = '18px';
-  btn.textContent = 'Show my result';
-  btn.onclick = async () => {
-    if(isSubmitting) return;
-    let ig = igInput.value.trim();
-    const email = emailInput.value.trim();
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if(!ig){ err.textContent = 'Enter your Instagram handle.'; igInput.focus(); return; }
-    if(!emailValid){ err.textContent = 'Enter a valid email.'; emailInput.focus(); return; }
-    if(!ig.startsWith('@')) ig = '@' + ig;
-    err.textContent = '';
-    isSubmitting = true;
-    btn.disabled = true;
-    btn.textContent = 'Sending\u2026';
-    leadInstagram = ig; leadEmail = email;
-    await saveLead();
-    step += 1;
-    render();
-  };
-
-  card.appendChild(h1); card.appendChild(p);
-  card.appendChild(igInput); card.appendChild(emailInput);
-  card.appendChild(err); card.appendChild(btn);
+function goBack(){
+  stopDictation();
+  if(!S.history.length){ captureDraft = S.context; view = 'capture'; render(); return; }
+  const prev = S.history.pop();      // answers after this point get re-picked
+  current = prev.q;
+  draft = prev.answer;
+  view = 'question';
+  render();
 }
 
-function topArchetype(){
-  let best = 'identity', bestScore = -1;
-  for(const k in scores){
-    if(scores[k] > bestScore){ bestScore = scores[k]; best = k; }
-  }
-  return best;
+function renderGate(){
+  trackProgress('email_gate');
+  const h1 = el('h1', null, 'Your map is ready.');
+  h1.style.fontSize = '26px';
+  const p = el('p', 'lede', 'Where should we send it? Your result shows on the next screen.');
+  const ig = el('input', 'field');
+  ig.placeholder = 'Instagram handle';
+  ig.value = leadInstagram;
+  ig.autocomplete = 'off';
+  const em = el('input', 'field');
+  em.placeholder = 'Email';
+  em.type = 'email';
+  em.autocomplete = 'email';
+  em.value = leadEmail;
+  em.style.marginTop = '14px';
+  const err = el('div', 'err');
+  const note = el('div', 'privacy', 'Your answers stay private. Edo uses them to prepare your call.');
+  const row = el('div', 'btn-row');
+  const back = el('button', 'btn-secondary', 'Back');
+  back.onclick = goBack;
+  const go = el('button', 'btn', 'Show my result');
+  go.style.marginTop = '0';
+  go.onclick = () => {
+    let handle = ig.value.trim();
+    const email = em.value.trim();
+    if(!handle){ err.textContent = 'Enter your Instagram handle.'; ig.focus(); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent = 'Enter a valid email.'; em.focus(); return; }
+    if(!handle.startsWith('@')) handle = '@' + handle;
+    leadInstagram = handle;
+    leadEmail = email;
+    err.textContent = '';
+    call({ action: 'finish', state: pack() }, 'Building your map.', async res => {
+      finalData = res;
+      await Promise.race([saveLead(), new Promise(r => setTimeout(r, 4000))]);
+      view = 'result';
+      render();
+    }, () => { view = 'gate'; render(); });
+  };
+  [ig, em].forEach(f => f.addEventListener('keydown', e => { if(e.key === 'Enter') go.click(); }));
+  row.append(back, go);
+  card.append(h1, p, ig, em, err, note, row);
 }
 
 async function saveLead(){
-  const archetype = topArchetype();
+  if(!SCRIPT_URL || !finalData) return;
+  const d = finalData;
   const record = {
     action: 'complete',
     sessionId: SESSION_ID,
     email: leadEmail,
     instagram: leadInstagram,
-    reflection: leadReflection,
-    archetype: archetype,
-    scores: scores,
-    answers: answers,
+    reflection: S.context,          // what they shared on the first screen
+    archetype: d.primary,
+    scores: d.percentages,          // the four percentages
+    answers: d.answers,
+    stage: d.stage || '',
+    confidence: d.confidence,
+    mode: d.mode,
+    heard: S.heard,
+    brief: d.brief,                 // call prep for Edo
+    seed: d.seed,                   // dashboard starting point
+    profile: S.profile,
     ts: new Date().toISOString()
   };
-  if(!SCRIPT_URL){
-    console.warn('SCRIPT_URL not set, lead not logged:', record);
-    return;
-  }
   try{
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight, same as the intake form
-      body: JSON.stringify(record)
-    });
+    await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(record), keepalive: true });
   }catch(e){
     console.error('Lead logging error (non-blocking):', e);
   }
 }
 
-function renderResult(){
-  const archetype = topArchetype();
-  const r = RESULTS[archetype];
-
-  const tag = document.createElement('div');
-  tag.className = 'result-tag';
-  tag.textContent = r.tag;
-
-  const h1 = document.createElement('h1');
-  h1.style.fontSize = '25px';
-  h1.textContent = r.title;
-
-  const body = document.createElement('p');
-  body.className = 'result-body';
-  body.textContent = r.body;
-
-  const mechH = document.createElement('div');
-  mechH.className = 'result-h';
-  mechH.textContent = 'Why this happens';
-  const mechP = document.createElement('p');
-  mechP.className = 'result-p';
-  mechP.textContent = r.mechanism;
-
-  const signsH = document.createElement('div');
-  signsH.className = 'result-h';
-  signsH.textContent = 'How this shows up';
-  const signsList = document.createElement('ul');
-  signsList.className = 'result-list';
-  r.signs.forEach(s => {
-    const li = document.createElement('li');
-    li.textContent = s;
-    signsList.appendChild(li);
-  });
-
-  const shiftH = document.createElement('div');
-  shiftH.className = 'result-h';
-  shiftH.textContent = 'What changes when it resolves';
-  const shiftP = document.createElement('p');
-  shiftP.className = 'result-p';
-  shiftP.textContent = r.shift;
-
-  const route = document.createElement('div');
-  route.className = 'result-route';
-  route.innerHTML = 'Recommended next step: <b>' + r.offer + '</b><br>' + r.route;
-
-  card.appendChild(tag); card.appendChild(h1); card.appendChild(body);
-  card.appendChild(mechH); card.appendChild(mechP);
-  card.appendChild(signsH); card.appendChild(signsList);
-  card.appendChild(shiftH); card.appendChild(shiftP);
-  card.appendChild(route);
-
-  if(r.note){
-    const note = document.createElement('div');
-    note.className = 'result-note';
-    note.textContent = r.note;
-    card.appendChild(note);
-  }
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'btn-row';
-
-  const btn = document.createElement('a');
-  btn.className = 'btn';
-  btn.style.display = 'inline-block';
-  btn.style.textDecoration = 'none';
-  btn.style.marginTop = '0';
-  btn.href = r.link;
-  btn.target = '_blank';
-  btn.rel = 'noopener';
-  btn.textContent = r.ctaLabel;
-
-  const dl = document.createElement('button');
-  dl.className = 'btn-secondary';
-  dl.textContent = 'Download your result';
-  dl.onclick = () => downloadResultPDF(archetype);
-
-  btnRow.appendChild(btn); btnRow.appendChild(dl);
-  card.appendChild(btnRow);
+function section(title, text){
+  if(!text) return;
+  card.appendChild(el('div', 'result-h', title));
+  card.appendChild(el('p', 'result-p', text));
 }
 
-function downloadResultPDF(archetype){
+function renderResult(){
+  trackProgress('result');
+  const d = finalData;
+  const r = RESULTS[d.primary] || RESULTS.identity;
+  const ai = d.result;
+
+  card.appendChild(el('div', 'result-tag', 'Your ceiling map'));
+  const h1 = el('h1', null, ai && ai.headline ? ai.headline : r.title);
+  h1.style.fontSize = '25px';
+  card.appendChild(h1);
+  card.appendChild(el('p', 'result-body', 'How much each pattern is driving your ceiling right now.'));
+
+  const map = el('div', 'map');
+  const fills = [];
+  (d.order || PATTERNS).forEach((p, i) => {
+    const row = el('div', 'map-row' + (i === 0 ? ' top' : ''));
+    const top = el('div', 'map-top');
+    top.append(el('span', 'map-name', NAMES[p]), el('span', 'map-pct', d.percentages[p] + '%'));
+    const track = el('div', 'map-track');
+    track.setAttribute('role', 'img');
+    track.setAttribute('aria-label', NAMES[p] + ': ' + d.percentages[p] + ' percent');
+    const fill = el('div', 'map-fill');
+    track.appendChild(fill);
+    fills.push([fill, d.percentages[p]]);
+    const line = ai && ai.pattern_lines && ai.pattern_lines[p] ? ai.pattern_lines[p] : SHORT[p];
+    row.append(top, track, el('div', 'map-line', line));
+    map.appendChild(row);
+  });
+  card.appendChild(map);
+  requestAnimationFrame(() => requestAnimationFrame(() => fills.forEach(([f, v]) => { f.style.width = v + '%'; })));
+
+  if(d.confidence === 'low'){
+    card.appendChild(el('div', 'result-note', 'No single pattern stands out yet. That usually means it sits deeper than a questionnaire can reach, which is exactly what the call is for.'));
+  }
+
+  if(ai){
+    section('What you said', ai.said);
+    section('What your answers point to', ai.pointing);
+    section('What it’s costing you', ai.cost);
+  } else {
+    card.appendChild(el('p', 'result-body', r.body));
+  }
+
+  section('Why this happens', r.mechanism);
+  card.appendChild(el('div', 'result-h', 'How it shows up'));
+  const signs = el('ul', 'result-list');
+  r.signs.forEach(s => signs.appendChild(el('li', null, s)));
+  card.appendChild(signs);
+  section('What changes when it resolves', ai && ai.shift ? ai.shift : r.shift);
+
+  const route = el('div', 'result-route');
+  route.innerHTML = 'Recommended next step: <b>' + r.offer + '</b><br>' + r.route;
+  card.appendChild(route);
+  if(r.note) card.appendChild(el('div', 'result-note', r.note));
+
+  const row = el('div', 'btn-row');
+  const cta = el('a', 'btn', r.ctaLabel);
+  cta.style.display = 'inline-block';
+  cta.style.textDecoration = 'none';
+  cta.style.marginTop = '0';
+  cta.href = r.link;
+  cta.target = '_blank';
+  cta.rel = 'noopener';
+  const dl = el('button', 'btn-secondary', 'Download your result');
+  dl.onclick = downloadResultPDF;
+  row.append(cta, dl);
+  card.appendChild(row);
+  card.appendChild(el('div', 'disclaimer', 'This maps patterns, not diagnoses. It isn’t a clinical assessment.'));
+}
+
+function renderLoading(){
+  const box = el('div', 'loading');
+  box.setAttribute('role', 'status');
+  box.setAttribute('aria-live', 'polite');
+  box.append(el('div', 'loading-text', loadingMsg), el('div', 'loading-line'));
+  card.appendChild(box);
+}
+
+function renderError(){
+  const h1 = el('h1', null, 'Something didn’t go through.');
+  h1.style.fontSize = '24px';
+  const p = el('p', 'lede', errorMsg === 'too_many_requests'
+    ? 'Too many tries in a short time. Wait a few minutes, then try again.'
+    : 'Your answers are still here. Check your connection and try again.');
+  const row = el('div', 'btn-row');
+  const again = el('button', 'btn', 'Try again');
+  again.style.marginTop = '0';
+  again.onclick = () => { const r = retry; if(r) call(r.payload, r.msg, r.onOk, r.onBack); };
+  const back = el('button', 'btn-secondary', 'Back');
+  back.onclick = () => { const r = retry; retry = null; if(r && r.onBack) r.onBack(); else { view = 'capture'; render(); } };
+  row.append(again, back);
+  card.append(h1, p, row);
+}
+
+function renderSafety(){
+  const h1 = el('h1', null, 'Thank you for sharing this.');
+  h1.style.fontSize = '26px';
+  const row = el('div', 'btn-row');
+  const restart = el('button', 'btn-secondary', 'Start over');
+  restart.onclick = () => { S = blankSession(); captureDraft = ''; current = null; draft = null; view = 'capture'; render(); };
+  row.appendChild(restart);
+  card.append(
+    h1,
+    el('p', 'result-body', 'Some of what you wrote sounds heavy, and that matters more than any business question.'),
+    el('p', 'result-body', 'If you’re going through something hard right now, please talk to someone you trust or a mental health professional. If you’re in danger, call your local emergency number.'),
+    el('p', 'result-body', 'This page will be here when you’re ready.'),
+    row
+  );
+}
+
+// ---------- PDF ----------
+function downloadResultPDF(){
   try{
-    const r = RESULTS[archetype];
+    const d = finalData;
+    const r = RESULTS[d.primary] || RESULTS.identity;
+    const ai = d.result;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const margin = 56, width = 483;
     let y = 70;
-
+    const room = n => { if(y + n > 790){ doc.addPage(); y = 70; } };
     function addLines(lines, size, gap, bold){
       doc.setFont('helvetica', bold ? 'bold' : 'normal');
       doc.setFontSize(size);
-      lines.forEach(line => {
-        if(y > 780){ doc.addPage(); y = 70; }
-        doc.text(line, margin, y);
-        y += gap;
-      });
+      lines.forEach(line => { room(gap); doc.text(line, margin, y); y += gap; });
+    }
+    function para(title, text){
+      if(!text) return;
+      y += 14;
+      addLines([title], 13, 18, true);
+      addLines(doc.splitTextToSize(text, width), 11, 15, false);
     }
 
-    addLines(doc.splitTextToSize(r.tag.toUpperCase(), width), 10, 14, true);
+    addLines(['YOUR CEILING MAP'], 10, 14, true);
     y += 6;
-    addLines(doc.splitTextToSize(r.title, width), 17, 22, true);
-    y += 8;
-    addLines(doc.splitTextToSize(r.body, width), 11, 15, false);
-    y += 14;
+    addLines(doc.splitTextToSize(ai && ai.headline ? ai.headline : r.title, width), 17, 22, true);
+    y += 10;
+    (d.order || PATTERNS).forEach(p => {
+      room(52);
+      addLines([NAMES[p] + '   ' + d.percentages[p] + '%'], 11, 14, true);
+      doc.setFillColor(225, 225, 225); doc.rect(margin, y - 4, width, 4, 'F');
+      doc.setFillColor(20, 20, 20); doc.rect(margin, y - 4, width * d.percentages[p] / 100, 4, 'F');
+      y += 12;
+      const line = ai && ai.pattern_lines && ai.pattern_lines[p] ? ai.pattern_lines[p] : SHORT[p];
+      addLines(doc.splitTextToSize(line, width), 10, 13, false);
+      y += 8;
+    });
 
-    addLines(['Why this happens'], 13, 18, true);
-    addLines(doc.splitTextToSize(r.mechanism, width), 11, 15, false);
+    if(ai){
+      para('What you said', ai.said);
+      para('What your answers point to', ai.pointing);
+      para('What it’s costing you', ai.cost);
+    } else {
+      y += 8;
+      addLines(doc.splitTextToSize(r.body, width), 11, 15, false);
+    }
+    para('Why this happens', r.mechanism);
     y += 14;
-
-    addLines(['How this shows up'], 13, 18, true);
-    r.signs.forEach(s => addLines(doc.splitTextToSize('\u2022 ' + s, width), 11, 15, false));
+    addLines(['How it shows up'], 13, 18, true);
+    r.signs.forEach(s => addLines(doc.splitTextToSize('• ' + s, width), 11, 15, false));
+    para('What changes when it resolves', ai && ai.shift ? ai.shift : r.shift);
     y += 14;
-
-    addLines(['What changes when it resolves'], 13, 18, true);
-    addLines(doc.splitTextToSize(r.shift, width), 11, 15, false);
-    y += 14;
-
     addLines(['Recommended next step: ' + r.offer], 12, 16, true);
     addLines(doc.splitTextToSize(r.route, width), 11, 15, false);
+    para('What you shared', S.context);
+    y += 18;
+    addLines(['This maps patterns, not diagnoses. It isn’t a clinical assessment.'], 9, 12, false);
 
-    if(leadReflection){
-      y += 14;
-      addLines(['In your own words'], 13, 18, true);
-      addLines(doc.splitTextToSize(leadReflection, width), 11, 15, false);
-    }
-
-    doc.save('neural-recoding-' + archetype + '-diagnostic.pdf');
+    doc.save('neural-recoding-ceiling-map.pdf');
   }catch(e){
     console.error('PDF generation error:', e);
   }
