@@ -98,6 +98,7 @@
   .mic:hover{border-color:var(--accent-dim);background:rgba(255,255,255,0.08);}
   .mic:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
   .mic svg{width:20px;height:20px;}
+  .mic:disabled{opacity:0.5;cursor:wait;}
   .mic.rec{background:var(--accent);border-color:var(--accent);color:#0A0A0A;animation:pulse 1.6s ease-out infinite;}
   @keyframes pulse{
     0%{box-shadow:0 0 0 0 rgba(255,255,255,0.35);}
@@ -451,37 +452,91 @@ function pack(){
   };
 }
 
-// ---------- VOICE (the browser's own speech-to-text; the transcript lands in the text box) ----------
+// ---------- VOICE ----------
+// Two ways to turn speech into text:
+//  record:  the browser records the voice note and the server transcribes it. Works in most
+//           browsers, including Brave and Firefox. On when OPENAI_API_KEY is set in Vercel.
+//  dictate: the browser's own speech-to-text. Chrome, Safari and Edge only. Brave exposes it
+//           but it never returns text, so Brave is excluded.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const UA = navigator.userAgent || '';
 const IS_ANDROID = /Android/i.test(UA);
+const IS_BRAVE = !!(navigator.brave && typeof navigator.brave.isBrave === 'function');
 const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|Line\/|TikTok|musical_ly|Snapchat/i.test(UA);
+const CAN_RECORD = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+const REC_MAX = 150;    // seconds per recorded voice note (tap again to add more)
+const DICT_MAX = 300;   // seconds per dictation
 const VOICE_LANGS = [['en-US','EN'],['en-GB','EN-GB'],['it-IT','IT'],['es-ES','ES'],['de-DE','DE'],['fr-FR','FR'],['pt-BR','PT']];
+const VMSG = {
+  blocked: 'Microphone blocked. Allow it in your browser settings, or type instead.',
+  nomic: 'No microphone found. You can type instead.',
+  browser: 'Voice isn’t working in this browser. Open this page in Chrome or Safari, or type it out.',
+  lang: 'That language isn’t supported here. Pick EN, or type it out.'
+};
 let voiceLang = 'en-US';
-let dict = null;
+let serverVoice = false;   // set by the engine on load
+let voice = null;          // active recording or dictation
+let voiceBusy = false;     // recording or transcribing: Continue waits
+let voiceSlots = [];
 
-function stopDictation(){
-  if(!dict) return;
-  const d = dict;
-  dict = null;
-  d.keep = false;
-  clearInterval(d.timer);
-  try{ d.rec.stop(); }catch(e){}
-  d.ui.idle();
+function voiceMode(){
+  if(serverVoice && CAN_RECORD) return 'record';
+  if(SR && !IS_BRAVE) return 'dictate';
+  return null;
+}
+function noVoiceNote(){
+  if(IS_BRAVE) return 'Voice notes don’t work in Brave. Open this page in Chrome or Safari, or type it out.';
+  if(IN_APP) return 'Voice notes work when you open this page in Safari or Chrome. Here, type it out.';
+  return 'Voice notes work in Chrome or Safari. Here, type it out.';
+}
+function stopVoice(){
+  if(voice){ const v = voice; voice = null; v.cancel(); }
+  voiceBusy = false;
+}
+function fmtTime(s){ return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function appendText(ta, text){ ta.value = (ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '') + text; }
+function touch(ta){ ta.dispatchEvent(new Event('input')); }
+function dictationError(code){
+  if(code === 'not-allowed') return VMSG.blocked;
+  if(code === 'audio-capture') return VMSG.nomic;
+  if(code === 'language-not-supported') return VMSG.lang;
+  return VMSG.browser;
+}
+function pickMime(){
+  if(!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+  return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mp4;codecs=mp4a.40.2']
+    .find(t => { try{ return MediaRecorder.isTypeSupported(t); }catch(e){ return false; } }) || '';
+}
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
 }
 
 function startDictation(ta, ui){
-  if(!SR) return;
-  stopDictation();
   let rec;
-  try{ rec = new SR(); }catch(e){ ui.fail("Voice isn't available here. You can type instead."); return; }
-  const d = { rec, keep: true, started: Date.now(), timer: null, ui };
+  try{ rec = new SR(); }catch(e){ ui.fail(VMSG.browser); return; }
+  const s = { keep: true, failed: false, started: Date.now(), sessionStart: Date.now(), got: false, quick: 0, timer: null };
+  const finish = () => {
+    clearInterval(s.timer);
+    if(voice === s) voice = null;
+    touch(ta);
+    if(!s.failed) ui.idle();
+  };
+  s.stop = () => { s.keep = false; try{ rec.stop(); }catch(e){ finish(); } };
+  s.cancel = () => { s.keep = false; clearInterval(s.timer); try{ rec.abort(); }catch(e){} };
   rec.lang = voiceLang;
   rec.interimResults = true;
-  rec.continuous = !IS_ANDROID;   // Android repeats text in continuous mode, so restart per phrase instead
+  rec.continuous = !IS_ANDROID;   // Android repeats text in continuous mode, so it restarts per phrase
   rec.maxAlternatives = 1;
   let base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
+  rec.onstart = () => { s.sessionStart = Date.now(); s.got = false; };
   rec.onresult = e => {
+    s.got = true;
+    s.quick = 0;
     let fin = '', inter = '';
     for(let i = 0; i < e.results.length; i++){
       const t = (e.results[i][0].transcript || '').trim();
@@ -490,39 +545,133 @@ function startDictation(ta, ui){
       else inter += (inter ? ' ' : '') + t;
     }
     ta.value = base + fin + (inter ? (fin ? ' ' : '') + inter : '');
-    ta.dispatchEvent(new Event('input'));
+    touch(ta);
   };
   rec.onerror = e => {
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
-      d.keep = false;
-      ui.fail('Microphone blocked. Allow it in your browser settings, or type instead.');
-    } else if(e.error === 'audio-capture'){
-      d.keep = false;
-      ui.fail('No microphone found. You can type instead.');
-    }
+    if(e.error === 'no-speech' || e.error === 'aborted') return;
+    s.keep = false;
+    s.failed = true;
+    ui.fail(dictationError(e.error));
   };
   rec.onend = () => {
-    if(d.keep && dict === d){
-      base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
-      try{ rec.start(); return; }catch(err){}
+    if(voice !== s) return;   // cancelled because the screen changed
+    if(s.keep){
+      // sessions that end instantly without any text mean the browser's speech service isn't working
+      const instant = !s.got && Date.now() - s.sessionStart < 2000;
+      s.quick = instant ? s.quick + 1 : 0;
+      if(s.quick >= 3){
+        s.keep = false;
+        s.failed = true;
+        ui.fail(VMSG.browser);
+      } else {
+        base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
+        try{ rec.start(); return; }catch(err){}
+      }
     }
-    if(dict === d){ dict = null; clearInterval(d.timer); }
-    ui.idle();
+    finish();
   };
-  try{ rec.start(); }catch(e){ ui.fail("Couldn't start the microphone. You can type instead."); return; }
-  dict = d;
-  d.timer = setInterval(() => {
-    const s = Math.floor((Date.now() - d.started) / 1000);
-    ui.tick(s);
-    if(s >= 300) stopDictation();
+  try{ rec.start(); }catch(e){ ui.fail(VMSG.browser); return; }
+  voice = s;
+  s.timer = setInterval(() => {
+    const sec = Math.floor((Date.now() - s.started) / 1000);
+    if(voice === s && s.keep) ui.tick(sec);
+    if(sec >= DICT_MAX) s.stop();
   }, 500);
   ui.recording();
 }
 
-function buildVoice(ta, idleText){
-  if(!SR){
-    return IN_APP ? el('div', 'voice-note', 'Voice notes work when you open this page in Safari or Chrome. Here, type it out.') : null;
+async function startRecording(ta, ui){
+  voiceBusy = true;
+  touch(ta);
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(e){
+    voiceBusy = false;
+    touch(ta);
+    ui.fail(e && e.name === 'NotFoundError' ? VMSG.nomic : VMSG.blocked);
+    return;
   }
+  if(!document.body.contains(ta)){ stream.getTracks().forEach(t => t.stop()); return; }   // screen changed while asking
+  const type = pickMime();
+  let mr;
+  try{
+    mr = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
+  }catch(e){
+    try{ mr = new MediaRecorder(stream); }catch(e2){
+      stream.getTracks().forEach(t => t.stop());
+      voiceBusy = false;
+      touch(ta);
+      ui.fail(VMSG.browser);
+      return;
+    }
+  }
+  const chunks = [];
+  const s = { discard: false, started: Date.now(), timer: null };
+  const release = () => { clearInterval(s.timer); stream.getTracks().forEach(t => t.stop()); };
+  s.stop = () => { if(mr.state !== 'inactive'){ try{ mr.stop(); }catch(e){} } };
+  s.cancel = () => { s.discard = true; s.stop(); release(); };
+  mr.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+  mr.onstop = async () => {
+    release();
+    if(voice === s) voice = null;
+    if(s.discard) return;
+    const mime = (mr.mimeType || type || 'audio/webm').split(';')[0];
+    const blob = new Blob(chunks, { type: mime });
+    if(blob.size < 1500){
+      voiceBusy = false;
+      touch(ta);
+      ui.fail('Too short. Tap, talk, then tap again to stop.');
+      return;
+    }
+    ui.working();
+    try{
+      const res = await api({ action: 'transcribe', audio: await blobToBase64(blob), mime });
+      const text = String(res.text || '').trim();
+      if(!text) throw new Error('empty transcript');
+      appendText(ta, text);
+      voiceBusy = false;
+      touch(ta);
+      ui.idle();
+    }catch(e){
+      console.error('Transcription error:', e);
+      voiceBusy = false;
+      touch(ta);
+      ui.fail('Couldn’t transcribe that. Try again, or type it out.');
+    }
+  };
+  try{ mr.start(1000); }catch(e){
+    release();
+    voiceBusy = false;
+    touch(ta);
+    ui.fail(VMSG.browser);
+    return;
+  }
+  voice = s;
+  s.timer = setInterval(() => {
+    const sec = Math.floor((Date.now() - s.started) / 1000);
+    ui.tick(sec);
+    if(sec >= REC_MAX) s.stop();
+  }, 500);
+  ui.recording();
+}
+
+// A slot holds the voice controls for one text box; it's rebuilt when the engine says
+// recorded voice notes are available.
+function buildVoice(ta, idleText){
+  const slot = el('div', 'voice-slot');
+  voiceSlots.push({ slot, ta, idleText });
+  fillVoice(slot, ta, idleText);
+  return slot;
+}
+function refreshVoice(){
+  if(voice || voiceBusy) return;
+  voiceSlots.forEach(v => { if(document.body.contains(v.slot)) fillVoice(v.slot, v.ta, v.idleText); });
+}
+function fillVoice(slot, ta, idleText){
+  slot.innerHTML = '';
+  const mode = voiceMode();
+  if(!mode){ slot.appendChild(el('div', 'voice-note', noVoiceNote())); return; }
   const row = el('div', 'voice');
   const mic = el('button', 'mic');
   mic.innerHTML = MIC_SVG;
@@ -530,30 +679,46 @@ function buildVoice(ta, idleText){
   mic.setAttribute('aria-pressed', 'false');
   const status = el('span', 'voice-status', idleText);
   status.setAttribute('aria-live', 'polite');
-  const lang = el('select', 'lang');
-  lang.setAttribute('aria-label', 'Voice language');
-  VOICE_LANGS.forEach(([code, label]) => {
-    const o = el('option', null, label);
-    o.value = code;
-    if(code === voiceLang) o.selected = true;
-    lang.appendChild(o);
-  });
-  lang.onchange = () => { voiceLang = lang.value; stopDictation(); };
+  row.append(mic, status);
+  if(mode === 'dictate'){
+    const lang = el('select', 'lang');
+    lang.setAttribute('aria-label', 'Voice language');
+    VOICE_LANGS.forEach(([code, label]) => {
+      const o = el('option', null, label);
+      o.value = code;
+      if(code === voiceLang) o.selected = true;
+      lang.appendChild(o);
+    });
+    lang.onchange = () => { voiceLang = lang.value; stopVoice(); };
+    row.appendChild(lang);
+  }
   let failed = false;
   const ui = {
-    recording(){ failed = false; mic.classList.add('rec'); mic.setAttribute('aria-pressed', 'true'); status.textContent = 'Recording 0:00. Tap to stop.'; },
-    tick(s){ status.textContent = 'Recording ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + '. Tap to stop.'; },
-    idle(){ mic.classList.remove('rec'); mic.setAttribute('aria-pressed', 'false'); if(!failed) status.textContent = ta.value.trim() ? 'Tap to add more by voice.' : idleText; },
-    fail(msg){ failed = true; mic.classList.remove('rec'); mic.setAttribute('aria-pressed', 'false'); status.textContent = msg; }
+    recording(){ failed = false; mic.disabled = false; mic.classList.add('rec'); mic.setAttribute('aria-pressed', 'true'); status.textContent = 'Recording 0:00. Tap to stop.'; },
+    tick(s){ status.textContent = 'Recording ' + fmtTime(s) + '. Tap to stop.'; },
+    working(){ mic.classList.remove('rec'); mic.setAttribute('aria-pressed', 'false'); mic.disabled = true; status.textContent = 'Transcribing…'; },
+    idle(){ mic.classList.remove('rec'); mic.disabled = false; mic.setAttribute('aria-pressed', 'false'); if(!failed) status.textContent = ta.value.trim() ? 'Tap to add more by voice.' : idleText; },
+    fail(msg){ failed = true; mic.classList.remove('rec'); mic.disabled = false; mic.setAttribute('aria-pressed', 'false'); status.textContent = msg; }
   };
-  mic.onclick = () => { if(dict) stopDictation(); else startDictation(ta, ui); };
-  row.append(mic, status, lang);
-  return row;
+  mic.onclick = () => {
+    if(voice){ voice.stop(); return; }
+    if(voiceBusy) return;
+    if(mode === 'record') startRecording(ta, ui);
+    else startDictation(ta, ui);
+  };
+  slot.appendChild(row);
+}
+
+function loadCaps(){
+  api({ action: 'caps' })
+    .then(res => { serverVoice = !!(res && res.transcribe); refreshVoice(); })
+    .catch(() => {});
 }
 
 // ---------- RENDER ----------
 function render(){
-  stopDictation();
+  stopVoice();
+  voiceSlots = [];
   updateProgress();
   card.innerHTML = '';
   ({
@@ -579,8 +744,7 @@ function renderCapture(){
   ta.placeholder = 'Talk or type here…';
   ta.setAttribute('aria-label', 'Where you’re at');
   ta.value = captureDraft || S.context;
-  const voice = buildVoice(ta, 'Tap to record a voice note.');
-  if(voice) card.appendChild(voice);
+  card.appendChild(buildVoice(ta, 'Tap to record a voice note.'));
   card.appendChild(ta);
 
   const meta = el('div', 'meta');
@@ -602,7 +766,7 @@ function renderCapture(){
     const words = text ? text.split(/\s+/).length : 0;
     count.textContent = words + (words === 1 ? ' word' : ' words');
     hint.textContent = text.length < MIN_CONTEXT ? 'A bit more detail' : (words < 60 ? 'More detail, sharper result' : 'Good');
-    go.disabled = text.length < MIN_CONTEXT;
+    go.disabled = text.length < MIN_CONTEXT || voiceBusy;
   };
   ta.addEventListener('input', sync);
   sync();
@@ -611,7 +775,7 @@ function renderCapture(){
 
 function submitContext(text){
   if(text.length < MIN_CONTEXT) return;
-  stopDictation();
+  stopVoice();
   // unchanged text after "Edit": pick up where they left off
   if(S.profile && text === S.context && (current || S.history.length)){
     view = current ? 'question' : 'gate';
@@ -706,8 +870,7 @@ function renderQuestion(){
     ta.setAttribute('aria-label', 'Your answer');
     ta.value = a.text || '';
     ta.addEventListener('input', () => { a.text = ta.value; a.skipped = false; paint(); });
-    const voice = buildVoice(ta, 'Tap to answer by voice.');
-    if(voice) card.appendChild(voice);
+    card.appendChild(buildVoice(ta, 'Tap to answer by voice.'));
     card.appendChild(ta);
   }
 
@@ -735,6 +898,7 @@ function pick(q, a, i){
 }
 
 function ready(q, a){
+  if(voiceBusy) return false;
   const typed = (a.text || '').trim().length > 1;
   if(q.format === 'scale') return !!a.value || a.na;
   if(q.format === 'text') return typed;
@@ -742,7 +906,7 @@ function ready(q, a){
 }
 
 function submitAnswer(){
-  stopDictation();
+  stopVoice();
   const entry = { q: current, answer: JSON.parse(JSON.stringify(draft)), evidence: [] };
   S.history.push(entry);
   call({ action: 'next', state: pack() }, 'Choosing your next question.', res => {
@@ -762,7 +926,7 @@ function submitAnswer(){
 }
 
 function goBack(){
-  stopDictation();
+  stopVoice();
   if(!S.history.length){ captureDraft = S.context; view = 'capture'; render(); return; }
   const prev = S.history.pop();      // answers after this point get re-picked
   current = prev.q;
@@ -1022,6 +1186,7 @@ function downloadResultPDF(){
   }
 }
 
+loadCaps();
 render();
 </script>
 </body>

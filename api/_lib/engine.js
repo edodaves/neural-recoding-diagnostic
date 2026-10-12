@@ -17,6 +17,7 @@
  */
 
 const BANK = require('./bank');
+const voice = require('./transcribe');
 
 const PATTERNS = ['approval', 'perfectionism', 'scarcity', 'identity'];
 const STAGES = ['pre', 'early', 'growing', 'plateau', 'declining', 'scaling'];
@@ -46,7 +47,8 @@ const zero = () => ({ approval: 0, perfectionism: 0, scarcity: 0, identity: 0 })
 const clip = (s, n) => { s = s == null ? '' : String(s); return s.length > n ? s.slice(0, n) : s; };
 const tidy = (s, n) => clip(String(s == null ? '' : s).replace(/\s*—\s*/g, ', ').replace(/[ \t]+/g, ' ').trim(), n || LIMIT.field);
 const lower = s => String(s == null ? '' : s).trim().toLowerCase();
-const hasKey = () => !!process.env.ANTHROPIC_API_KEY;
+const apiKey = () => String(process.env.ANTHROPIC_API_KEY || '').trim();   // tolerate a pasted space or line break
+const hasKey = () => !!apiKey();
 const fitsStage = (q, stage) => !stage || q.stages.indexOf(stage) !== -1;
 const weighted = o => Object.keys(o.w).length > 0;
 
@@ -409,7 +411,7 @@ function systemPrompt() {
 }
 
 async function callClaude(model, user, schema, maxTokens, timeoutMs) {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = apiKey();
   if (!key) throw new Error('no_key');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -682,6 +684,13 @@ async function handle(body) {
   if (body.action === 'start') return start(body);
   if (body.action === 'next') return next(body);
   if (body.action === 'finish') return finish(body);
+  if (body.action === 'caps') return { transcribe: voice.available() };
+  if (body.action === 'transcribe') {
+    try { return await voice.transcribe(body); } catch (e) {
+      console.error('[diagnostic] transcription failed:', e.message);
+      return { error: 'transcribe_failed' };
+    }
+  }
   return { error: 'unknown_action' };
 }
 

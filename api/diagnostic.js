@@ -5,6 +5,7 @@
  *
  * Env vars (Vercel > Project > Settings > Environment Variables):
  *   ANTHROPIC_API_KEY  required for the adaptive AI mode (without it the diagnostic runs in rules mode)
+ *   OPENAI_API_KEY     optional, turns on recorded voice notes in every browser (see _lib/transcribe.js)
  *   ALLOWED_ORIGINS    optional, comma-separated, e.g. https://diagnostic.edodaves.com
  *   DIAG_MODEL_FAST / DIAG_MODEL_DEEP  optional model overrides
  */
@@ -33,7 +34,7 @@ function send(res, code, obj) {
 function readBody(req) {
   return new Promise(resolve => {
     let data = '';
-    req.on('data', chunk => { data += chunk; if (data.length > 300000) { data = ''; req.destroy(); } });
+    req.on('data', chunk => { data += chunk; if (data.length > 6000000) { data = ''; req.destroy(); } });
     req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { resolve(null); } });
     req.on('error', () => resolve(null));
   });
